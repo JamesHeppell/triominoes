@@ -81,3 +81,26 @@ export function drawEmptySlot(
   ctx.stroke();
   ctx.setLineDash([]);
 }
+
+/** Draw a tray ghost slot — a star (▲ + ▽ overlaid) with dashed outlines. */
+export function drawStarSlot(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number
+): void {
+  ctx.fillStyle = "#1e2d50";
+  ctx.strokeStyle = "#5577aa";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+
+  tracePath(ctx, triVertices(cx, cy, r, false));
+  ctx.fill();
+
+  tracePath(ctx, triVertices(cx, cy, r, true));
+  ctx.stroke();
+  tracePath(ctx, triVertices(cx, cy, r, false));
+  ctx.stroke();
+
+  ctx.setLineDash([]);
+}

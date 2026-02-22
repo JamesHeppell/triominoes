@@ -1,5 +1,5 @@
 import { ALL_PIECES, PieceValues } from "./pieces";
-import { drawPiece, drawEmptySlot, triVertices } from "./draw";
+import { drawPiece, drawEmptySlot, drawStarSlot, triVertices } from "./draw";
 import { computeBoardLayout } from "./layout";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -23,11 +23,17 @@ const BOARD_SHAPE: Record<Difficulty, { rows: number; cols: number }> = {
 /** The piece values – set once on load, stable across resizes. */
 let pieces: PieceValues[] = [];
 
+/** Current rotation (0–5) for each piece; 0 = canonical orientation (▲). */
+let pieceRotation: number[] = [];
+
 /**
  * Placement state: boardOccupancy[i] = index into pieces[] placed in board
  * slot i, or null.  Persists across resizes (only positions change).
  */
 let boardOccupancy: (number | null)[] = [];
+
+/** DOM panel shown when all pieces are placed. */
+let solvedPanelEl: HTMLElement | null = null;
 
 // Layout – recomputed on resize (positions only, never touches occupancy)
 let R = 30;
@@ -44,6 +50,9 @@ interface DragState {
   fromBoard: number | null;
   x: number;
   y: number;
+  /** Where the pointer went down — used to distinguish tap from drag. */
+  startX: number;
+  startY: number;
 }
 let drag: DragState | null = null;
 
@@ -77,6 +86,22 @@ function toCanvas(
     (e.clientX - rect.left) * (canvas.width  / rect.width),
     (e.clientY - rect.top)  * (canvas.height / rect.height),
   ];
+}
+
+// ─── Rotation helpers ────────────────────────────────────────────────────────
+
+/** rotation 0,2,4 → ▲ (up); 1,3,5 → ▽ (down). */
+function rotationIsUp(rotation: number): boolean {
+  return rotation % 2 === 0;
+}
+
+/**
+ * Returns the three displayed values for a piece at a given rotation.
+ * Each rotation shifts which corner is "top" and whether the triangle is up or down.
+ */
+function rotatedValues(piece: PieceValues, rotation: number): PieceValues {
+  const shift = rotation % 3;
+  return [piece[shift], piece[(shift + 1) % 3], piece[(shift + 2) % 3]];
 }
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -152,7 +177,7 @@ function render(ctx: CanvasRenderingContext2D): void {
     const pIdx = boardOccupancy[i];
 
     if (pIdx !== null && pIdx !== drag?.pieceIdx) {
-      drawPiece(ctx, cx, cy, R, pieces[pIdx], up);
+      drawPiece(ctx, cx, cy, R, rotatedValues(pieces[pIdx], pieceRotation[pIdx]), up);
     } else {
       drawEmptySlot(ctx, cx, cy, R, up);
     }
@@ -178,10 +203,10 @@ function render(ctx: CanvasRenderingContext2D): void {
     const isDragging = drag?.pieceIdx === i;
 
     if (!isOnBoard && !isDragging) {
-      drawPiece(ctx, cx, cy, R, pieces[i]);
+      drawPiece(ctx, cx, cy, R, rotatedValues(pieces[i], pieceRotation[i]), rotationIsUp(pieceRotation[i]));
     } else {
-      // Ghost slot – shows the home position while the piece is elsewhere
-      drawEmptySlot(ctx, cx, cy, R, true);
+      // Ghost slot – star outline (▲ + ▽ overlaid) shows the home position
+      drawStarSlot(ctx, cx, cy, R);
     }
   }
 
@@ -191,8 +216,25 @@ function render(ctx: CanvasRenderingContext2D): void {
     ctx.shadowColor   = "rgba(0,0,0,0.45)";
     ctx.shadowBlur    = 10;
     ctx.shadowOffsetY = 5;
-    drawPiece(ctx, drag.x, drag.y, R, pieces[drag.pieceIdx]);
+    const dRot = pieceRotation[drag.pieceIdx];
+    drawPiece(ctx, drag.x, drag.y, R, rotatedValues(pieces[drag.pieceIdx], dRot), rotationIsUp(dRot));
     ctx.restore();
+  }
+
+  // ── Solved overlay ────────────────────────────────────────────────────────
+  const isSolved = boardOccupancy.length > 0 && boardOccupancy.every(p => p !== null);
+  if (solvedPanelEl) solvedPanelEl.hidden = !isSolved;
+
+  if (isSolved) {
+    ctx.fillStyle = "rgba(22, 33, 62, 0.78)";
+    ctx.fillRect(0, 0, canvasW, boardSectionH);
+
+    const solvedSize = Math.max(28, Math.round(R * 1.3));
+    ctx.fillStyle = "#f9c74f";
+    ctx.font = `bold ${solvedSize}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("SOLVED!", canvasW / 2, boardSectionH / 2);
   }
 }
 
@@ -213,7 +255,9 @@ function hitTray(x: number, y: number): number {
     if (boardOccupancy.some(p => p === i)) continue;
     if (drag?.pieceIdx === i) continue;
     const { cx, cy } = traySlotPos[i];
+    // Check both orientations — slot renders as a star (▲ + ▽)
     if (pointInTriangle(x, y, triVertices(cx, cy, R, true))) return i;
+    if (pointInTriangle(x, y, triVertices(cx, cy, R, false))) return i;
   }
   return -1;
 }
@@ -254,7 +298,7 @@ function attachPointerEvents(
     // Lift from occupied board slot
     const bi = hitBoard(x, y);
     if (bi !== -1 && boardOccupancy[bi] !== null) {
-      drag = { pieceIdx: boardOccupancy[bi]!, fromBoard: bi, x, y };
+      drag = { pieceIdx: boardOccupancy[bi]!, fromBoard: bi, x, y, startX: x, startY: y };
       boardOccupancy[bi] = null;
       canvas.setPointerCapture(e.pointerId);
       render(ctx);
@@ -264,7 +308,7 @@ function attachPointerEvents(
     // Lift from tray
     const ti = hitTray(x, y);
     if (ti !== -1) {
-      drag = { pieceIdx: ti, fromBoard: null, x, y };
+      drag = { pieceIdx: ti, fromBoard: null, x, y, startX: x, startY: y };
       canvas.setPointerCapture(e.pointerId);
       render(ctx);
     }
@@ -282,17 +326,27 @@ function attachPointerEvents(
   canvas.addEventListener("pointerup", (e) => {
     if (!drag) return;
     const [x, y] = toCanvas(canvas, e);
-    const { pieceIdx, fromBoard } = drag;
+    const { pieceIdx, fromBoard, startX, startY } = drag;
     drag = null;
+
+    // Tap (no real movement) → rotate piece, restore to origin
+    if (Math.hypot(x - startX, y - startY) < 8) {
+      pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 1) % 6;
+      if (fromBoard !== null) boardOccupancy[fromBoard] = pieceIdx;
+      render(ctx);
+      return;
+    }
 
     const target = snapTarget(x, y);
     if (target !== -1) {
-      // Snapped onto an empty board slot
+      // Auto-adapt rotation to match the slot's up/down orientation
+      const slotUp = boardSlotPos[target].up;
+      if (rotationIsUp(pieceRotation[pieceIdx]) !== slotUp) {
+        pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 3) % 6;
+      }
       boardOccupancy[target] = pieceIdx;
     } else if (y >= boardSectionH) {
       // Dropped anywhere in the tray area → return piece to its tray home.
-      // boardOccupancy[fromBoard] was already cleared on pointerdown, so no
-      // further action is needed; the piece is back in the tray implicitly.
     } else if (fromBoard !== null) {
       // Dropped on the board area but no valid slot → restore to original slot
       boardOccupancy[fromBoard] = pieceIdx;
@@ -328,6 +382,8 @@ function init(): void {
       difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
   }
 
+  solvedPanelEl = document.getElementById("solved-panel");
+
   const canvas = document.getElementById("puzzle-canvas") as HTMLCanvasElement | null;
   if (!canvas) { console.error("No canvas element found."); return; }
 
@@ -335,7 +391,8 @@ function init(): void {
   if (!ctx) return;
 
   // Initialise once per load
-  pieces        = randomPieces(PIECE_COUNT[difficulty]);
+  pieces         = randomPieces(PIECE_COUNT[difficulty]);
+  pieceRotation  = Array(PIECE_COUNT[difficulty]).fill(0);
   boardOccupancy = Array(
     BOARD_SHAPE[difficulty].rows * BOARD_SHAPE[difficulty].cols
   ).fill(null);

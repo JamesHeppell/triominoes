@@ -15,6 +15,16 @@
 
   <main class="puzzle-main">
     <canvas id="puzzle-canvas"></canvas>
+
+    <div id="solved-panel" hidden>
+      <p class="solved-msg">All pieces placed!</p>
+      <p class="solved-sub">Try a different difficulty:</p>
+      <nav class="difficulty-nav">
+        <a href="puzzle.html?d=easy"   class="btn btn-easy">Easy</a>
+        <a href="puzzle.html?d=medium" class="btn btn-medium">Medium</a>
+        <a href="puzzle.html?d=hard"   class="btn btn-hard">Hard</a>
+      </nav>
+    </div>
   </main>
 
   <script src="puzzle.js"></script>
