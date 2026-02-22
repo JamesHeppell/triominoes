@@ -1,10 +1,14 @@
 import { ALL_PIECES, PieceValues } from "./pieces";
 import { drawPiece, drawEmptySlot, drawStarSlot, triVertices } from "./draw";
 import { computeBoardLayout } from "./layout";
-
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-type Difficulty = "easy" | "medium" | "hard";
+import {
+  Difficulty,
+  getUtcDateKey,
+  dailySeed,
+  seededRng,
+  markDailyComplete,
+  isDailyComplete,
+} from "./daily";
 
 const PIECE_COUNT: Record<Difficulty, number> = {
   easy: 3,
@@ -34,6 +38,13 @@ let boardOccupancy: (number | null)[] = [];
 
 /** DOM panel shown when all pieces are placed. */
 let solvedPanelEl: HTMLElement | null = null;
+
+/** Set once in init(); used for completion tracking. */
+let currentDateKey = "";
+let currentDifficulty: Difficulty = "easy";
+
+/** Prevents marking completion more than once per session. */
+let solvedMarked = false;
 
 // Layout – recomputed on resize (positions only, never touches occupancy)
 let R = 30;
@@ -120,7 +131,10 @@ function recomputeLayout(difficulty: Difficulty): void {
   const available = window.innerWidth - BODY_MARGIN;
 
   // ── Board ──────────────────────────────────────────────────────────────────
-  const bl = computeBoardLayout(rows, cols);
+  // Cap R so the tray always fits at least 3 columns.
+  // CELL_W = R * (84/30), so 3 cols need R ≤ (available - TRAY_PAD*2) / (3 * 84/30).
+  const rMaxForTray = Math.floor((available - TRAY_PAD * 2) / (3 * (84 / 30)));
+  const bl = computeBoardLayout(rows, cols, rMaxForTray);
   R = bl.r;
   boardSectionH = bl.canvasH;
 
@@ -167,9 +181,16 @@ function recomputeLayout(difficulty: Difficulty): void {
 // ─── Render ──────────────────────────────────────────────────────────────────
 
 function render(ctx: CanvasRenderingContext2D): void {
+  const isSolved = boardOccupancy.length > 0 && boardOccupancy.every(p => p !== null);
+
+  // When solved, shrink the canvas to just the board section so the tray
+  // disappears and the solved panel below becomes immediately visible.
+  const renderH = isSolved ? boardSectionH : canvasH;
+  if (ctx.canvas.height !== renderH) ctx.canvas.height = renderH; // clears canvas
+
   // Background
   ctx.fillStyle = "#16213e";
-  ctx.fillRect(0, 0, canvasW, canvasH);
+  ctx.fillRect(0, 0, canvasW, renderH);
 
   // ── Board slots ───────────────────────────────────────────────────────────
   for (let i = 0; i < boardSlotPos.length; i++) {
@@ -183,49 +204,49 @@ function render(ctx: CanvasRenderingContext2D): void {
     }
   }
 
-  // ── Divider ───────────────────────────────────────────────────────────────
-  const divY = boardSectionH + 8;
-  ctx.fillStyle = "#e94560";
-  ctx.fillRect(16, divY, canvasW - 32, 2);
+  if (!isSolved) {
+    // ── Divider ─────────────────────────────────────────────────────────────
+    const divY = boardSectionH + 8;
+    ctx.fillStyle = "#e94560";
+    ctx.fillRect(16, divY, canvasW - 32, 2);
 
-  const labelSize = Math.max(10, Math.round(R * 0.24));
-  ctx.fillStyle = "#a0a0b0";
-  ctx.font = `bold ${labelSize}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("YOUR PIECES", canvasW / 2, divY + 9);
+    const labelSize = Math.max(10, Math.round(R * 0.24));
+    ctx.fillStyle = "#a0a0b0";
+    ctx.font = `bold ${labelSize}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("YOUR PIECES", canvasW / 2, divY + 9);
 
-  // ── Tray slots ────────────────────────────────────────────────────────────
-  // Every tray position always shows something: either the piece or a ghost.
-  for (let i = 0; i < pieces.length; i++) {
-    const { cx, cy } = traySlotPos[i];
-    const isOnBoard  = boardOccupancy.some(p => p === i);
-    const isDragging = drag?.pieceIdx === i;
+    // ── Tray slots ───────────────────────────────────────────────────────────
+    for (let i = 0; i < pieces.length; i++) {
+      const { cx, cy } = traySlotPos[i];
+      const isOnBoard  = boardOccupancy.some(p => p === i);
+      const isDragging = drag?.pieceIdx === i;
 
-    if (!isOnBoard && !isDragging) {
-      drawPiece(ctx, cx, cy, R, rotatedValues(pieces[i], pieceRotation[i]), rotationIsUp(pieceRotation[i]));
-    } else {
-      // Ghost slot – star outline (▲ + ▽ overlaid) shows the home position
-      drawStarSlot(ctx, cx, cy, R);
+      if (!isOnBoard && !isDragging) {
+        drawPiece(ctx, cx, cy, R, rotatedValues(pieces[i], pieceRotation[i]), rotationIsUp(pieceRotation[i]));
+      } else {
+        drawStarSlot(ctx, cx, cy, R);
+      }
+    }
+
+    // ── Dragged piece (drawn on top of everything) ───────────────────────────
+    if (drag) {
+      ctx.save();
+      ctx.shadowColor   = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur    = 10;
+      ctx.shadowOffsetY = 5;
+      const dRot = pieceRotation[drag.pieceIdx];
+      drawPiece(ctx, drag.x, drag.y, R, rotatedValues(pieces[drag.pieceIdx], dRot), rotationIsUp(dRot));
+      ctx.restore();
     }
   }
 
-  // ── Dragged piece (drawn on top of everything) ────────────────────────────
-  if (drag) {
-    ctx.save();
-    ctx.shadowColor   = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur    = 10;
-    ctx.shadowOffsetY = 5;
-    const dRot = pieceRotation[drag.pieceIdx];
-    drawPiece(ctx, drag.x, drag.y, R, rotatedValues(pieces[drag.pieceIdx], dRot), rotationIsUp(dRot));
-    ctx.restore();
-  }
-
   // ── Solved overlay ────────────────────────────────────────────────────────
-  const isSolved = boardOccupancy.length > 0 && boardOccupancy.every(p => p !== null);
   if (solvedPanelEl) solvedPanelEl.hidden = !isSolved;
-
   if (isSolved) {
+    updateSolvedPanel();
+
     ctx.fillStyle = "rgba(22, 33, 62, 0.78)";
     ctx.fillRect(0, 0, canvasW, boardSectionH);
 
@@ -353,6 +374,7 @@ function attachPointerEvents(
     }
     // else: lifted from tray, dropped on board with no valid slot → back to tray
 
+    checkCompletion();
     render(ctx);
   });
 
@@ -368,8 +390,41 @@ function attachPointerEvents(
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
-function randomPieces(n: number): PieceValues[] {
-  return [...ALL_PIECES].sort(() => Math.random() - 0.5).slice(0, n);
+function seededPieces(n: number, rng: () => number): PieceValues[] {
+  const arr = [...ALL_PIECES];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, n);
+}
+
+function updateSolvedPanel(): void {
+  const difficulties: Difficulty[] = ["easy", "medium", "hard"];
+
+  for (const d of difficulties) {
+    const btn = document.getElementById(`solved-btn-${d}`);
+    if (!btn) continue;
+    if (isDailyComplete(currentDateKey, d)) {
+      btn.classList.add("btn-completed");
+    } else {
+      btn.classList.remove("btn-completed");
+    }
+  }
+
+  const allDone = difficulties.every(d => isDailyComplete(currentDateKey, d));
+  const subEl = document.getElementById("solved-sub");
+  const navEl = document.getElementById("solved-nav");
+  if (subEl) subEl.textContent = allDone ? "You've solved all of today's puzzles!" : "Try a different difficulty:";
+  if (navEl) (navEl as HTMLElement).hidden = allDone;
+}
+
+function checkCompletion(): void {
+  if (solvedMarked) return;
+  if (boardOccupancy.length > 0 && boardOccupancy.every(p => p !== null)) {
+    solvedMarked = true;
+    markDailyComplete(currentDateKey, currentDifficulty);
+  }
 }
 
 function init(): void {
@@ -390,8 +445,11 @@ function init(): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  // Initialise once per load
-  pieces         = randomPieces(PIECE_COUNT[difficulty]);
+  // Initialise once per load — pieces are seeded by today's UTC date
+  currentDateKey    = getUtcDateKey();
+  currentDifficulty = difficulty;
+  solvedMarked      = false;
+  pieces         = seededPieces(PIECE_COUNT[difficulty], seededRng(dailySeed(currentDateKey, difficulty)));
   pieceRotation  = Array(PIECE_COUNT[difficulty]).fill(0);
   boardOccupancy = Array(
     BOARD_SHAPE[difficulty].rows * BOARD_SHAPE[difficulty].cols
@@ -406,6 +464,17 @@ function init(): void {
 
   redraw();
   attachPointerEvents(canvas, ctx);
+
+  // If today's puzzle is already complete, show the solved state immediately
+  if (isDailyComplete(currentDateKey, difficulty)) {
+    solvedMarked = true;
+    for (let i = 0; i < boardOccupancy.length; i++) {
+      boardOccupancy[i] = i;
+      // Flip rotation to match slot orientation (all pieces start at rotation 0 = up)
+      if (!boardSlotPos[i].up) pieceRotation[i] = 3;
+    }
+    render(ctx);
+  }
 
   let lastWidth = window.innerWidth;
   let resizeTimer: ReturnType<typeof setTimeout>;

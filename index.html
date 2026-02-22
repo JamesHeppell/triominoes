@@ -9,12 +9,13 @@
 <body>
   <header>
     <h1>Triominoes</h1>
-    <p class="subtitle">Puzzles</p>
+    <p class="subtitle">Daily Puzzles</p>
     <nav class="difficulty-nav">
-      <a href="puzzle.html?d=easy"   class="btn btn-easy">Easy</a>
-      <a href="puzzle.html?d=medium" class="btn btn-medium">Medium</a>
-      <a href="puzzle.html?d=hard"   class="btn btn-hard">Hard</a>
+      <a href="puzzle.html?d=easy"   id="btn-easy"   class="btn btn-easy">Easy</a>
+      <a href="puzzle.html?d=medium" id="btn-medium" class="btn btn-medium">Medium</a>
+      <a href="puzzle.html?d=hard"   id="btn-hard"   class="btn btn-hard">Hard</a>
     </nav>
+    <p class="next-puzzle">Next daily puzzle in <span id="countdown">--:--:--</span><button id="reset-btn" hidden>↺ Reset</button></p>
   </header>
 
   <main>

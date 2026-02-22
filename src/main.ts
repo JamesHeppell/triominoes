@@ -1,6 +1,7 @@
 import { ALL_PIECES } from "./pieces";
 import { drawPiece } from "./draw";
 import { computeGridLayout } from "./layout";
+import { Difficulty, getUtcDateKey, isDailyComplete, msUntilUtcMidnight, resetDailyProgress } from "./daily";
 
 function render(
   canvas: HTMLCanvasElement,
@@ -26,6 +27,49 @@ function render(
   status.textContent = `Full triomino set – ${ALL_PIECES.length} pieces`;
 }
 
+function updateButtonStates(): void {
+  const dateKey = getUtcDateKey();
+  const difficulties: Difficulty[] = ["easy", "medium", "hard"];
+
+  difficulties.forEach(d => {
+    const btn = document.getElementById(`btn-${d}`);
+    if (btn && isDailyComplete(dateKey, d)) {
+      btn.classList.add("btn-completed");
+    }
+  });
+
+  const allDone = difficulties.every(d => isDailyComplete(dateKey, d));
+  const resetBtn = document.getElementById("reset-btn") as HTMLButtonElement | null;
+  if (resetBtn) {
+    resetBtn.hidden = !allDone;
+    resetBtn.addEventListener("click", () => {
+      resetDailyProgress(dateKey);
+      window.location.reload();
+    });
+  }
+}
+
+function startCountdown(): void {
+  const el = document.getElementById("countdown");
+  if (!el) return;
+
+  function tick(): void {
+    const ms = msUntilUtcMidnight();
+    if (ms <= 0) {
+      window.location.reload();
+      return;
+    }
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    el!.textContent = [h, m, s].map(n => String(n).padStart(2, "0")).join(":");
+  }
+
+  tick();
+  setInterval(tick, 1000);
+}
+
 function init(): void {
   const canvas = document.getElementById("board") as HTMLCanvasElement | null;
   const status = document.getElementById("status") as HTMLElement | null;
@@ -42,6 +86,8 @@ function init(): void {
   }
 
   render(canvas, ctx, status);
+  updateButtonStates();
+  startCountdown();
 
   let lastWidth = window.innerWidth;
   let resizeTimer: ReturnType<typeof setTimeout>;

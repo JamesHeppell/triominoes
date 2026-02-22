@@ -78,13 +78,13 @@ export interface BoardLayout {
  * Board width  = (nCols + 1) * R * √3/2 + 2 * pad
  * Board height = nRows * 1.5 * R        + 2 * pad
  */
-export function computeBoardLayout(nRows: number, nCols: number): BoardLayout {
+export function computeBoardLayout(nRows: number, nCols: number, maxR = 60): BoardLayout {
   const available = window.innerWidth - BODY_MARGIN;
   const PAD = 20;
 
   const rFromWidth =
     (available - 2 * PAD) / ((nCols + 1) * (Math.sqrt(3) / 2));
-  const r = Math.round(Math.min(60, rFromWidth));
+  const r = Math.round(Math.min(maxR, rFromWidth));
   const s = r * Math.sqrt(3);
   const h = r * 1.5;
   const canvasW = Math.round((nCols + 1) * (s / 2) + 2 * PAD);
