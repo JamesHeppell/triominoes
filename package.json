@@ -1,0 +1,13 @@
+{
+  "name": "triominoes",
+  "version": "1.0.0",
+  "description": "Triominoes puzzle solver",
+  "scripts": {
+    "build": "esbuild src/main.ts src/puzzle.ts --bundle --outdir=dist && cp index.html puzzle.html style.css dist/",
+    "dev": "esbuild src/main.ts src/puzzle.ts --bundle --outdir=dist --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0",
+    "typescript": "^5.4.0"
+  }
+}
