@@ -225,6 +225,79 @@
     const shift = rotation % 3;
     return [piece[shift], piece[(shift + 1) % 3], piece[(shift + 2) % 3]];
   }
+  function generateSolution(rng) {
+    const { rows, cols } = boardShape;
+    const n = rows * cols;
+    const genPieces = Array(n).fill(null);
+    const genRots = Array(n).fill(0);
+    const used = new Array(ALL_PIECES.length).fill(false);
+    function fill(slot) {
+      if (slot === n)
+        return true;
+      const row = Math.floor(slot / cols);
+      const col = slot % cols;
+      const isUp = (row + col) % 2 === 0;
+      const validRots = isUp ? [0, 2, 4] : [1, 3, 5];
+      const cands = [];
+      for (let i = 0; i < ALL_PIECES.length; i++) {
+        if (!used[i])
+          cands.push(i);
+      }
+      for (let i = cands.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [cands[i], cands[j]] = [cands[j], cands[i]];
+      }
+      for (const pi of cands) {
+        for (const rot of validRots) {
+          const v = rotatedValues(ALL_PIECES[pi], rot);
+          let ok = true;
+          if (isUp) {
+            if (col > 0) {
+              const nb = rotatedValues(genPieces[slot - 1], genRots[slot - 1]);
+              if (v[0] !== nb[2] || v[2] !== nb[0])
+                ok = false;
+            }
+          } else {
+            if (col > 0 && ok) {
+              const nb = rotatedValues(genPieces[slot - 1], genRots[slot - 1]);
+              if (nb[0] !== v[1] || nb[1] !== v[0])
+                ok = false;
+            }
+            if (row > 0 && ok) {
+              const nb = rotatedValues(genPieces[(row - 1) * cols + col], genRots[(row - 1) * cols + col]);
+              if (nb[1] !== v[2] || nb[2] !== v[1])
+                ok = false;
+            }
+          }
+          if (ok) {
+            genPieces[slot] = ALL_PIECES[pi];
+            genRots[slot] = rot;
+            used[pi] = true;
+            if (fill(slot + 1))
+              return true;
+            genPieces[slot] = null;
+            used[pi] = false;
+          }
+        }
+      }
+      return false;
+    }
+    if (!fill(0)) {
+      console.warn("generateSolution: exhausted \u2014 falling back to random pieces");
+      const arr = [...ALL_PIECES];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr.slice(0, n);
+    }
+    const result = genPieces;
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
   var BODY_MARGIN2 = 16;
   var TRAY_PAD = 12;
   var DIVIDER_H = 14;
@@ -441,6 +514,7 @@
         pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 1) % 6;
         if (fromBoard !== null)
           boardOccupancy[fromBoard] = pieceIdx;
+        checkCompletion();
         render(ctx);
         return;
       }
@@ -467,14 +541,6 @@
         boardOccupancy[fromBoard] = pieceIdx;
       render(ctx);
     });
-  }
-  function seededPieces(n, rng) {
-    const arr = [...ALL_PIECES];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr.slice(0, n);
   }
   function updateSolvedPanel() {
     const difficulties = ["easy", "medium", "hard"];
@@ -532,8 +598,8 @@
     const count = min + Math.floor(rng() * (max - min + 1));
     boardShape = BOARD_SHAPE_FOR_COUNT[count];
     boardAdjacentPairs = computeAdjacentPairs();
-    pieces = seededPieces(count, rng);
-    pieceRotation = Array(count).fill(0);
+    pieces = generateSolution(rng);
+    pieceRotation = Array(pieces.length).fill(0);
     boardOccupancy = Array(boardShape.rows * boardShape.cols).fill(null);
     const redraw = () => {
       const canvasOffsetY = canvas.getBoundingClientRect().top + window.scrollY;

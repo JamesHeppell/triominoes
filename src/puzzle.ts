@@ -189,6 +189,106 @@ function rotatedValues(piece: PieceValues, rotation: number): PieceValues {
   return [piece[shift], piece[(shift + 1) % 3], piece[(shift + 2) % 3]];
 }
 
+// ─── Puzzle generation ───────────────────────────────────────────────────────
+
+/**
+ * Fills the board with a valid triomino tiling via backtracking, then returns
+ * the pieces in shuffled tray order so the player can't trivially read off
+ * the solution.
+ *
+ * Fill order: left-to-right, top-to-bottom.  At each slot only already-placed
+ * neighbours constrain the choice (at most 2), so the search tree is shallow
+ * and finishes in milliseconds even for 12-slot boards.
+ *
+ * Constraints checked per slot (vertex layout: ▲ v[0]=top v[1]=btm-right v[2]=btm-left,
+ *                                                ▽ v[0]=btm v[1]=top-left v[2]=top-right):
+ *   ▲ slot: left ▽ via 'left' rule  → my[0]=nb[2], my[2]=nb[0]
+ *   ▽ slot: left ▲ via 'right' rule → nb[0]=my[1], nb[1]=my[0]
+ *           above ▲ via 'below' rule → nb[1]=my[2], nb[2]=my[1]
+ */
+function generateSolution(rng: () => number): PieceValues[] {
+  const { rows, cols } = boardShape;
+  const n = rows * cols;
+
+  const genPieces: (PieceValues | null)[] = Array(n).fill(null);
+  const genRots: number[] = Array(n).fill(0);
+  const used = new Array(ALL_PIECES.length).fill(false);
+
+  function fill(slot: number): boolean {
+    if (slot === n) return true;
+
+    const row = Math.floor(slot / cols);
+    const col = slot % cols;
+    const isUp = (row + col) % 2 === 0;
+    const validRots = isUp ? [0, 2, 4] : [1, 3, 5];
+
+    // Shuffle remaining piece indices so each solve is different
+    const cands: number[] = [];
+    for (let i = 0; i < ALL_PIECES.length; i++) {
+      if (!used[i]) cands.push(i);
+    }
+    for (let i = cands.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [cands[i], cands[j]] = [cands[j], cands[i]];
+    }
+
+    for (const pi of cands) {
+      for (const rot of validRots) {
+        const v = rotatedValues(ALL_PIECES[pi], rot);
+        let ok = true;
+
+        if (isUp) {
+          // ▲: check left ▽ neighbour via 'left' rule: my[0]=nb[2], my[2]=nb[0]
+          if (col > 0) {
+            const nb = rotatedValues(genPieces[slot - 1]!, genRots[slot - 1]);
+            if (v[0] !== nb[2] || v[2] !== nb[0]) ok = false;
+          }
+        } else {
+          // ▽: check left ▲ neighbour via 'right' rule: nb[0]=my[1], nb[1]=my[0]
+          if (col > 0 && ok) {
+            const nb = rotatedValues(genPieces[slot - 1]!, genRots[slot - 1]);
+            if (nb[0] !== v[1] || nb[1] !== v[0]) ok = false;
+          }
+          // ▽: check above ▲ neighbour via 'below' rule: nb[1]=my[2], nb[2]=my[1]
+          if (row > 0 && ok) {
+            const nb = rotatedValues(genPieces[(row - 1) * cols + col]!, genRots[(row - 1) * cols + col]);
+            if (nb[1] !== v[2] || nb[2] !== v[1]) ok = false;
+          }
+        }
+
+        if (ok) {
+          genPieces[slot] = ALL_PIECES[pi];
+          genRots[slot]   = rot;
+          used[pi]        = true;
+          if (fill(slot + 1)) return true;
+          genPieces[slot] = null;
+          used[pi]        = false;
+        }
+      }
+    }
+    return false; // backtrack
+  }
+
+  if (!fill(0)) {
+    // Should never happen for n ≤ 12 with 56 pieces; guard for robustness
+    console.warn("generateSolution: exhausted — falling back to random pieces");
+    const arr = [...ALL_PIECES];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.slice(0, n);
+  }
+
+  // Shuffle tray order so the fill sequence doesn't reveal which piece goes where
+  const result = genPieces as PieceValues[];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
 const BODY_MARGIN = 16;  // must match body padding × 2 in CSS
@@ -464,6 +564,7 @@ function attachPointerEvents(
     if (Math.hypot(x - startX, y - startY) < 8) {
       pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 1) % 6;
       if (fromBoard !== null) boardOccupancy[fromBoard] = pieceIdx;
+      checkCompletion();
       render(ctx);
       return;
     }
@@ -500,14 +601,6 @@ function attachPointerEvents(
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
-function seededPieces(n: number, rng: () => number): PieceValues[] {
-  const arr = [...ALL_PIECES];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr.slice(0, n);
-}
 
 function updateSolvedPanel(): void {
   const difficulties: Difficulty[] = ["easy", "medium", "hard"];
@@ -566,11 +659,11 @@ function init(): void {
   const rng      = seededRng(dailySeed(currentDateKey, difficulty));
   const [min, max] = PIECE_COUNT_RANGE[difficulty];
   const count    = min + Math.floor(rng() * (max - min + 1));
-  boardShape          = BOARD_SHAPE_FOR_COUNT[count];
-  boardAdjacentPairs  = computeAdjacentPairs();
-  pieces              = seededPieces(count, rng);
-  pieceRotation       = Array(count).fill(0);
-  boardOccupancy      = Array(boardShape.rows * boardShape.cols).fill(null);
+  boardShape         = BOARD_SHAPE_FOR_COUNT[count];
+  boardAdjacentPairs = computeAdjacentPairs();
+  pieces             = generateSolution(rng);
+  pieceRotation      = Array(pieces.length).fill(0);
+  boardOccupancy     = Array(boardShape.rows * boardShape.cols).fill(null);
 
   const redraw = () => {
     const canvasOffsetY = canvas.getBoundingClientRect().top + window.scrollY;
