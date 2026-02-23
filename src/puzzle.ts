@@ -10,16 +10,22 @@ import {
   isDailyComplete,
 } from "./daily";
 
-const PIECE_COUNT: Record<Difficulty, number> = {
-  easy: 3,
-  medium: 5,
-  hard: 10,
+const PIECE_COUNT_RANGE: Record<Difficulty, [number, number]> = {
+  easy:   [4, 6],
+  medium: [7, 9],
+  hard:   [10, 12],
 };
 
-const BOARD_SHAPE: Record<Difficulty, { rows: number; cols: number }> = {
-  easy:   { rows: 1, cols: 3 },
-  medium: { rows: 1, cols: 5 },
-  hard:   { rows: 2, cols: 5 },
+const BOARD_SHAPE_FOR_COUNT: Record<number, { rows: number; cols: number }> = {
+  4:  { rows: 2, cols: 2 },
+  5:  { rows: 1, cols: 5 },
+  6:  { rows: 2, cols: 3 },
+  7:  { rows: 1, cols: 7 },
+  8:  { rows: 2, cols: 4 },
+  9:  { rows: 3, cols: 3 },
+  10: { rows: 2, cols: 5 },
+  11: { rows: 1, cols: 11 },
+  12: { rows: 3, cols: 4 },
 };
 
 // ─── Module-level state ─────────────────────────────────────────────────────
@@ -35,6 +41,9 @@ let pieceRotation: number[] = [];
  * slot i, or null.  Persists across resizes (only positions change).
  */
 let boardOccupancy: (number | null)[] = [];
+
+/** Board shape derived from the daily piece count; set once in init(). */
+let boardShape: { rows: number; cols: number } = { rows: 1, cols: 3 };
 
 /** DOM panel shown when all pieces are placed. */
 let solvedPanelEl: HTMLElement | null = null;
@@ -119,22 +128,37 @@ function rotatedValues(piece: PieceValues, rotation: number): PieceValues {
 
 const BODY_MARGIN = 16;  // must match body padding × 2 in CSS
 const TRAY_PAD    = 12;
-const DIVIDER_H   = 26;  // vertical space for the divider line + "YOUR PIECES" label
+const DIVIDER_H   = 14;  // vertical space for the divider line
 
 /**
  * Recomputes all position data.
  * Does NOT reset boardOccupancy – placement state is preserved across resizes.
+ * availH is the pixel height available for the canvas (window height minus page chrome).
  */
-function recomputeLayout(difficulty: Difficulty): void {
-  const { rows, cols } = BOARD_SHAPE[difficulty];
+function recomputeLayout(availH: number): void {
+  const { rows, cols } = boardShape;
   const n = pieces.length;
   const available = window.innerWidth - BODY_MARGIN;
+  const BOARD_PAD = 20;
+
+  // ── Find the largest R that fits both width and height ─────────────────────
+  const rFromWidth = Math.floor(
+    Math.min(60, (available - 2 * BOARD_PAD) / ((cols + 1) * (Math.sqrt(3) / 2)))
+  );
+
+  let bestR = 10;
+  for (let r = rFromWidth; r >= 10; r--) {
+    const boardH  = Math.round(rows * 1.5 * r + 2 * BOARD_PAD);
+    const cellW   = r * (84 / 30);
+    const cellH   = r * (78 / 30);
+    const tCols   = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / cellW)));
+    const tRows   = Math.ceil(n / tCols);
+    const totalH  = boardH + DIVIDER_H + 2 * TRAY_PAD + tRows * cellH;
+    if (totalH <= availH) { bestR = r; break; }
+  }
 
   // ── Board ──────────────────────────────────────────────────────────────────
-  // Cap R so the tray always fits at least 3 columns.
-  // CELL_W = R * (84/30), so 3 cols need R ≤ (available - TRAY_PAD*2) / (3 * 84/30).
-  const rMaxForTray = Math.floor((available - TRAY_PAD * 2) / (3 * (84 / 30)));
-  const bl = computeBoardLayout(rows, cols, rMaxForTray);
+  const bl = computeBoardLayout(rows, cols, bestR);
   R = bl.r;
   boardSectionH = bl.canvasH;
 
@@ -209,13 +233,6 @@ function render(ctx: CanvasRenderingContext2D): void {
     const divY = boardSectionH + 8;
     ctx.fillStyle = "#e94560";
     ctx.fillRect(16, divY, canvasW - 32, 2);
-
-    const labelSize = Math.max(10, Math.round(R * 0.24));
-    ctx.fillStyle = "#a0a0b0";
-    ctx.font = `bold ${labelSize}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("YOUR PIECES", canvasW / 2, divY + 9);
 
     // ── Tray slots ───────────────────────────────────────────────────────────
     for (let i = 0; i < pieces.length; i++) {
@@ -403,12 +420,16 @@ function updateSolvedPanel(): void {
   const difficulties: Difficulty[] = ["easy", "medium", "hard"];
 
   for (const d of difficulties) {
-    const btn = document.getElementById(`solved-btn-${d}`);
+    const btn = document.getElementById(`solved-btn-${d}`) as HTMLAnchorElement | null;
     if (!btn) continue;
     if (isDailyComplete(currentDateKey, d)) {
       btn.classList.add("btn-completed");
     } else {
       btn.classList.remove("btn-completed");
+    }
+    if (d === currentDifficulty) {
+      btn.removeAttribute("href");
+      btn.classList.add("btn-current");
     }
   }
 
@@ -449,14 +470,18 @@ function init(): void {
   currentDateKey    = getUtcDateKey();
   currentDifficulty = difficulty;
   solvedMarked      = false;
-  pieces         = seededPieces(PIECE_COUNT[difficulty], seededRng(dailySeed(currentDateKey, difficulty)));
-  pieceRotation  = Array(PIECE_COUNT[difficulty]).fill(0);
-  boardOccupancy = Array(
-    BOARD_SHAPE[difficulty].rows * BOARD_SHAPE[difficulty].cols
-  ).fill(null);
+  const rng      = seededRng(dailySeed(currentDateKey, difficulty));
+  const [min, max] = PIECE_COUNT_RANGE[difficulty];
+  const count    = min + Math.floor(rng() * (max - min + 1));
+  boardShape     = BOARD_SHAPE_FOR_COUNT[count];
+  pieces         = seededPieces(count, rng);
+  pieceRotation  = Array(count).fill(0);
+  boardOccupancy = Array(boardShape.rows * boardShape.cols).fill(null);
 
   const redraw = () => {
-    recomputeLayout(difficulty);
+    const canvasOffsetY = canvas.getBoundingClientRect().top + window.scrollY;
+    const availH = Math.max(150, window.innerHeight - canvasOffsetY - 16);
+    recomputeLayout(availH);
     canvas.width  = canvasW;
     canvas.height = canvasH;
     render(ctx);

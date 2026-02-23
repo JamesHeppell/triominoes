@@ -69,6 +69,27 @@ h1 {
   color: #e94560;
 }
 
+/* ── Logo ─────────────────────────────────────────────────────────────────── */
+
+.logo-tri {
+  filter: drop-shadow(0 0 8px rgba(233, 69, 96, 0.5));
+}
+
+.logo-tri--fixed-left {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  height: clamp(1.5rem, 6vw, 2.5rem);
+  width: auto;
+  z-index: 100;
+}
+
+.logo-tri--header-right {
+  height: clamp(1.2rem, 5vw, 1.8rem);
+  width: auto;
+  display: block;
+}
+
 /* ── Difficulty buttons ───────────────────────────────────────────────────── */
 
 .difficulty-nav {
@@ -104,6 +125,12 @@ h1 {
 
 .btn.btn-completed::after {
   content: " ✓";
+}
+
+.btn.btn-current {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
 }
 
 /* ── Main page content ────────────────────────────────────────────────────── */
@@ -172,9 +199,20 @@ main {
 
 .back-link:hover { color: #e94560; }
 
-/* Invisible spacer mirrors the back-link width to keep h1 centred */
+/* Mirrors back-link width to keep h1 centred; holds the corner logo */
 .header-spacer {
   min-width: 4rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.puzzle-instructions {
+  color: #a0a0b0;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: -0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 /* ── Puzzle page layout ───────────────────────────────────────────────────── */
