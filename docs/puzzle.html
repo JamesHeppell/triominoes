@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Triominoes – Puzzle</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="puzzle-header">
+    <a href="index.html" class="back-link">← Back</a>
+    <h1 id="puzzle-title">Puzzle</h1>
+    <span class="header-spacer"></span>
+  </header>
+
+  <main class="puzzle-main">
+    <canvas id="puzzle-canvas"></canvas>
+
+    <div id="solved-panel" hidden>
+      <p class="solved-msg">All pieces placed!</p>
+      <p id="solved-sub" class="solved-sub">Try a different difficulty:</p>
+      <nav id="solved-nav" class="difficulty-nav">
+        <a href="puzzle.html?d=easy"   id="solved-btn-easy"   class="btn btn-easy">Easy</a>
+        <a href="puzzle.html?d=medium" id="solved-btn-medium" class="btn btn-medium">Medium</a>
+        <a href="puzzle.html?d=hard"   id="solved-btn-hard"   class="btn btn-hard">Hard</a>
+      </nav>
+    </div>
+  </main>
+
+  <script src="puzzle.js"></script>
+</body>
+</html>
