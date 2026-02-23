@@ -76,6 +76,21 @@ interface DragState {
 }
 let drag: DragState | null = null;
 
+// ─── Adjacency ───────────────────────────────────────────────────────────────
+
+type AdjacencyType = 'right' | 'left' | 'below';
+
+interface AdjacentPair {
+  /** Always the ▲ slot. */
+  slotA: number;
+  /** Always the ▽ slot. */
+  slotB: number;
+  type: AdjacencyType;
+}
+
+/** All internal shared edges in the board; computed once after boardShape is set. */
+let boardAdjacentPairs: AdjacentPair[] = [];
+
 // ─── Geometry helpers ────────────────────────────────────────────────────────
 
 /** Returns true if (px, py) is inside the triangle defined by verts. */
@@ -106,6 +121,56 @@ function toCanvas(
     (e.clientX - rect.left) * (canvas.width  / rect.width),
     (e.clientY - rect.top)  * (canvas.height / rect.height),
   ];
+}
+
+// ─── Adjacency helpers ───────────────────────────────────────────────────────
+
+/**
+ * Enumerates every internal shared edge in the board exactly once.
+ * Only processes ▲ slots (row+col even) and records their right, left, and
+ * below ▽ neighbours — covering all pairs without double-counting.
+ */
+function computeAdjacentPairs(): AdjacentPair[] {
+  const { rows, cols } = boardShape;
+  const pairs: AdjacentPair[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if ((row + col) % 2 !== 0) continue; // only ▲ slots
+      const i = row * cols + col;
+      if (col + 1 < cols) pairs.push({ slotA: i, slotB: row * cols + (col + 1), type: 'right' });
+      if (col > 0)        pairs.push({ slotA: i, slotB: row * cols + (col - 1), type: 'left' });
+      if (row + 1 < rows) pairs.push({ slotA: i, slotB: (row + 1) * cols + col, type: 'below' });
+    }
+  }
+  return pairs;
+}
+
+/**
+ * Returns true if the two adjacent occupied slots have matching corner values
+ * at their shared edge.  Returns true (no violation) when either slot is empty.
+ *
+ * Vertex layout (from triVertices): ▲ v[0]=top, v[1]=bottom-right, v[2]=bottom-left
+ *                                   ▽ v[0]=bottom, v[1]=top-left,  v[2]=top-right
+ * Shared corners per direction:
+ *   right : ▲v[0]↔▽v[1]  ▲v[1]↔▽v[0]
+ *   left  : ▲v[0]↔▽v[2]  ▲v[2]↔▽v[0]
+ *   below : ▲v[1]↔▽v[2]  ▲v[2]↔▽v[1]
+ */
+function adjacencyMatches(slotA: number, slotB: number, type: AdjacencyType): boolean {
+  const pA = boardOccupancy[slotA];
+  const pB = boardOccupancy[slotB];
+  if (pA === null || pB === null) return true;
+  const vA = rotatedValues(pieces[pA], pieceRotation[pA]);
+  const vB = rotatedValues(pieces[pB], pieceRotation[pB]);
+  if (type === 'right') return vA[0] === vB[1] && vA[1] === vB[0];
+  if (type === 'left')  return vA[0] === vB[2] && vA[2] === vB[0];
+  /* below */           return vA[1] === vB[2] && vA[2] === vB[1];
+}
+
+/** True only when every slot is filled AND every shared edge has matching values. */
+function isPuzzleSolved(): boolean {
+  if (!boardOccupancy.length || !boardOccupancy.every(p => p !== null)) return false;
+  return boardAdjacentPairs.every(({ slotA, slotB, type }) => adjacencyMatches(slotA, slotB, type));
 }
 
 // ─── Rotation helpers ────────────────────────────────────────────────────────
@@ -205,7 +270,9 @@ function recomputeLayout(availH: number): void {
 // ─── Render ──────────────────────────────────────────────────────────────────
 
 function render(ctx: CanvasRenderingContext2D): void {
-  const isSolved = boardOccupancy.length > 0 && boardOccupancy.every(p => p !== null);
+  // solvedMarked is set only after isPuzzleSolved() passes, so tying the
+  // visual state to it means the overlay only appears on a valid solution.
+  const isSolved = solvedMarked && boardOccupancy.length > 0 && boardOccupancy.every(p => p !== null);
 
   // When solved, shrink the canvas to just the board section so the tray
   // disappears and the solved panel below becomes immediately visible.
@@ -225,6 +292,32 @@ function render(ctx: CanvasRenderingContext2D): void {
       drawPiece(ctx, cx, cy, R, rotatedValues(pieces[pIdx], pieceRotation[pIdx]), up);
     } else {
       drawEmptySlot(ctx, cx, cy, R, up);
+    }
+  }
+
+  // ── Mismatch edge highlights ─────────────────────────────────────────────
+  if (!isSolved) {
+    for (const { slotA, slotB, type } of boardAdjacentPairs) {
+      if (boardOccupancy[slotA] === null || boardOccupancy[slotB] === null) continue;
+      if (adjacencyMatches(slotA, slotB, type)) continue;
+
+      const { cx, cy } = boardSlotPos[slotA]; // slotA is always ▲
+      const verts = triVertices(cx, cy, R, true);
+      const [v1, v2] = type === 'right' ? [verts[0], verts[1]]
+                     : type === 'left'  ? [verts[0], verts[2]]
+                     :                   [verts[1], verts[2]]; // 'below'
+
+      ctx.save();
+      ctx.strokeStyle = "#ff4040";
+      ctx.lineWidth = Math.max(2, Math.round(R * 0.14));
+      ctx.lineCap = "round";
+      ctx.shadowColor = "#ff2222";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(v1[0], v1[1]);
+      ctx.lineTo(v2[0], v2[1]);
+      ctx.stroke();
+      ctx.restore();
     }
   }
 
@@ -442,7 +535,7 @@ function updateSolvedPanel(): void {
 
 function checkCompletion(): void {
   if (solvedMarked) return;
-  if (boardOccupancy.length > 0 && boardOccupancy.every(p => p !== null)) {
+  if (isPuzzleSolved()) {
     solvedMarked = true;
     markDailyComplete(currentDateKey, currentDifficulty);
   }
@@ -473,10 +566,11 @@ function init(): void {
   const rng      = seededRng(dailySeed(currentDateKey, difficulty));
   const [min, max] = PIECE_COUNT_RANGE[difficulty];
   const count    = min + Math.floor(rng() * (max - min + 1));
-  boardShape     = BOARD_SHAPE_FOR_COUNT[count];
-  pieces         = seededPieces(count, rng);
-  pieceRotation  = Array(count).fill(0);
-  boardOccupancy = Array(boardShape.rows * boardShape.cols).fill(null);
+  boardShape          = BOARD_SHAPE_FOR_COUNT[count];
+  boardAdjacentPairs  = computeAdjacentPairs();
+  pieces              = seededPieces(count, rng);
+  pieceRotation       = Array(count).fill(0);
+  boardOccupancy      = Array(boardShape.rows * boardShape.cols).fill(null);
 
   const redraw = () => {
     const canvasOffsetY = canvas.getBoundingClientRect().top + window.scrollY;
