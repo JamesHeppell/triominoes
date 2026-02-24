@@ -320,7 +320,7 @@ function recomputeLayout(availH: number): void {
 
   // ── Find the largest R that fits both width and height ─────────────────────
   const rFromWidth = Math.floor(
-    Math.min(60, (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2)))
+    (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2))
   );
 
   let bestR = 10;
@@ -334,10 +334,25 @@ function recomputeLayout(availH: number): void {
     if (totalH <= availH) { bestR = r; break; }
   }
 
-  // ── Board ──────────────────────────────────────────────────────────────────
+  // ── Board metrics ──────────────────────────────────────────────────────────
   const bl = computeBoardLayout(rows, cols, bestR);
   R = bl.r;
-  boardSectionH = bl.canvasH;
+
+  // ── Tray dimensions (computed before allocating board section height) ───────
+  const CELL_W = R * (84 / 30);
+  const CELL_H = R * (78 / 30);
+  const trayCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / CELL_W)));
+  const trayRows = Math.ceil(n / trayCols);
+  const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H;
+
+  // ── Extend canvas to fill viewport; give all extra space to board section ───
+  const minContentH = Math.round(rows * bl.h + 2 * BOARD_PAD_Y + DIVIDER_H + trayContentH);
+  canvasW = available;
+  canvasH = Math.max(minContentH, availH);
+
+  // Board section = everything above the divider; centre tiles vertically in it
+  boardSectionH = Math.round(canvasH - DIVIDER_H - trayContentH);
+  const boardPadY = Math.round((boardSectionH - rows * bl.h) / 2);
 
   // Centre the board horizontally within the canvas
   const boardOffsetX = Math.max(0, Math.round((available - bl.canvasW) / 2));
@@ -348,19 +363,13 @@ function recomputeLayout(availH: number): void {
       const up = (row + col) % 2 === 0;
       boardSlotPos.push({
         cx: boardOffsetX + bl.padX + (col + 1) * (bl.s / 2),
-        cy: bl.padY + row * bl.h + (up ? (2 * bl.h) / 3 : bl.h / 3),
+        cy: boardPadY + row * bl.h + (up ? (2 * bl.h) / 3 : bl.h / 3),
         up,
       });
     }
   }
 
-  // ── Tray ───────────────────────────────────────────────────────────────────
-  const CELL_W = R * (84 / 30);
-  const CELL_H = R * (78 / 30);
-  const trayCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / CELL_W)));
-  const trayRows = Math.ceil(n / trayCols);
-
-  // Centre tray horizontally
+  // ── Tray (pinned to bottom of canvas, just below the divider) ─────────────
   const trayContentW = trayCols * CELL_W;
   const trayOffsetX  = Math.max(0, (available - trayContentW) / 2);
   const trayStartY   = boardSectionH + DIVIDER_H;
@@ -374,9 +383,6 @@ function recomputeLayout(availH: number): void {
       cy: trayStartY + TRAY_PAD + row * CELL_H + CELL_H / 2,
     });
   }
-
-  canvasW = available;
-  canvasH = Math.round(trayStartY + TRAY_PAD + trayRows * CELL_H + TRAY_PAD);
 }
 
 // ─── Render ──────────────────────────────────────────────────────────────────

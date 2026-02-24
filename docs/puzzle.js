@@ -324,7 +324,7 @@
     const BOARD_PAD_X = 20;
     const BOARD_PAD_Y = 40;
     const rFromWidth = Math.floor(
-      Math.min(60, (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2)))
+      (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2))
     );
     let bestR = 10;
     for (let r = rFromWidth; r >= 10; r--) {
@@ -341,7 +341,16 @@
     }
     const bl = computeBoardLayout(rows, cols, bestR);
     R = bl.r;
-    boardSectionH = bl.canvasH;
+    const CELL_W = R * (84 / 30);
+    const CELL_H = R * (78 / 30);
+    const trayCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / CELL_W)));
+    const trayRows = Math.ceil(n / trayCols);
+    const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H;
+    const minContentH = Math.round(rows * bl.h + 2 * BOARD_PAD_Y + DIVIDER_H + trayContentH);
+    canvasW = available;
+    canvasH = Math.max(minContentH, availH);
+    boardSectionH = Math.round(canvasH - DIVIDER_H - trayContentH);
+    const boardPadY = Math.round((boardSectionH - rows * bl.h) / 2);
     const boardOffsetX = Math.max(0, Math.round((available - bl.canvasW) / 2));
     boardSlotPos = [];
     for (let row = 0; row < rows; row++) {
@@ -349,15 +358,11 @@
         const up = (row + col) % 2 === 0;
         boardSlotPos.push({
           cx: boardOffsetX + bl.padX + (col + 1) * (bl.s / 2),
-          cy: bl.padY + row * bl.h + (up ? 2 * bl.h / 3 : bl.h / 3),
+          cy: boardPadY + row * bl.h + (up ? 2 * bl.h / 3 : bl.h / 3),
           up
         });
       }
     }
-    const CELL_W = R * (84 / 30);
-    const CELL_H = R * (78 / 30);
-    const trayCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / CELL_W)));
-    const trayRows = Math.ceil(n / trayCols);
     const trayContentW = trayCols * CELL_W;
     const trayOffsetX = Math.max(0, (available - trayContentW) / 2);
     const trayStartY = boardSectionH + DIVIDER_H;
@@ -370,8 +375,6 @@
         cy: trayStartY + TRAY_PAD + row * CELL_H + CELL_H / 2
       });
     }
-    canvasW = available;
-    canvasH = Math.round(trayStartY + TRAY_PAD + trayRows * CELL_H + TRAY_PAD);
   }
   function render(ctx) {
     const isSolved = solvedMarked && boardOccupancy.length > 0 && boardOccupancy.every((p) => p !== null);
