@@ -141,16 +141,16 @@
     medium: [7, 9],
     hard: [10, 12]
   };
-  var BOARD_SHAPE_FOR_COUNT = {
-    4: { rows: 2, cols: 2 },
-    5: { rows: 1, cols: 5 },
-    6: { rows: 2, cols: 3 },
-    7: { rows: 1, cols: 7 },
-    8: { rows: 2, cols: 4 },
-    9: { rows: 3, cols: 3 },
-    10: { rows: 2, cols: 5 },
-    11: { rows: 1, cols: 11 },
-    12: { rows: 3, cols: 4 }
+  var BOARD_SHAPES_FOR_COUNT = {
+    4: [{ rows: 2, cols: 2 }, { rows: 1, cols: 4 }],
+    5: [{ rows: 1, cols: 5 }],
+    6: [{ rows: 2, cols: 3 }, { rows: 3, cols: 2 }, { rows: 1, cols: 6 }],
+    7: [{ rows: 1, cols: 7 }],
+    8: [{ rows: 2, cols: 4 }, { rows: 4, cols: 2 }, { rows: 1, cols: 8 }],
+    9: [{ rows: 3, cols: 3 }, { rows: 1, cols: 9 }],
+    10: [{ rows: 2, cols: 5 }, { rows: 1, cols: 10 }],
+    11: [{ rows: 1, cols: 11 }],
+    12: [{ rows: 3, cols: 4 }, { rows: 4, cols: 3 }, { rows: 2, cols: 6 }, { rows: 1, cols: 12 }]
   };
   var pieces = [];
   var pieceRotation = [];
@@ -596,7 +596,8 @@
     const rng = seededRng(dailySeed(currentDateKey, difficulty));
     const [min, max] = PIECE_COUNT_RANGE[difficulty];
     const count = min + Math.floor(rng() * (max - min + 1));
-    boardShape = BOARD_SHAPE_FOR_COUNT[count];
+    const shapes = BOARD_SHAPES_FOR_COUNT[count];
+    boardShape = shapes[Math.floor(rng() * shapes.length)];
     boardAdjacentPairs = computeAdjacentPairs();
     pieces = generateSolution(rng);
     pieceRotation = Array(pieces.length).fill(0);

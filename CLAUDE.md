@@ -8,7 +8,7 @@ Targeted at GitHub Pages (static files only — no server, no build step needed 
 - **TypeScript** compiled with **esbuild** (no framework, no runtime dependencies)
 - **HTML5 Canvas 2D** for all rendering — no DOM elements for pieces or slots
 - **Pointer Events API** for drag-and-drop (works on both touch and mouse)
-- Build: `npm run build` → bundles into `dist/` and copies HTML/CSS there
+- Build: `npm run build` → bundles into `docs/` and copies HTML/CSS there
 - Dev:   `npm run dev`   → same but in watch mode
 
 ## File structure
@@ -21,8 +21,9 @@ src/
   draw.ts           Canvas drawing primitives (triVertices, drawPiece, drawEmptySlot, drawStarSlot)
   layout.ts         Responsive layout maths (computeGridLayout, computeBoardLayout)
   main.ts           Main page logic — renders 56-piece grid
-  puzzle.ts         Puzzle page logic — board, tray, drag-and-drop, rotation
-dist/               Build output (gitignored in spirit; deployed to GitHub Pages)
+  puzzle.ts         Puzzle page logic — board, tray, drag-and-drop, rotation, generation
+  daily.ts          Daily seed, completion tracking (localStorage)
+docs/               Build output — deployed to GitHub Pages
 ```
 
 ## Piece model
@@ -46,23 +47,57 @@ dist/               Build output (gitignored in spirit; deployed to GitHub Pages
 
 ## Drawing
 - `triVertices(cx, cy, r, up)` — returns 3 vertices `[number, number][]`, vertex 0 is always the apex
+  - ▲ (up=true):  v[0]=top-apex, v[1]=bottom-right, v[2]=bottom-left
+  - ▽ (up=false): v[0]=bottom-apex, v[1]=top-left, v[2]=top-right
 - `drawPiece(ctx, cx, cy, r, values, up)` — cream fill (#FFF8EE), black labels at 42% of centroid→vertex
 - `drawEmptySlot(ctx, cx, cy, r, up)` — dashed blue outline (#5577aa), dark fill (#1e2d50)
 - `drawStarSlot(ctx, cx, cy, r)` — ▲+▽ overlaid (used for tray ghost slots when piece is elsewhere)
 - `TEXT_FRAC = 0.42` — label position; keeps text inside since inradius = R/2 and 0.42 < 0.5
 
+## Adjacency matching (core rule)
+When two placed pieces share an edge, their corner values at the two shared vertices must match —
+identical to dominoes but with two matching numbers per edge instead of one.
+
+Shared corners per edge direction (▲ = slotA, ▽ = slotB — always, by convention):
+| Direction | ▲ vertex | ▽ vertex |
+|-----------|----------|----------|
+| right  (▲ left, ▽ right in same row)    | v[0] ↔ v[1], v[1] ↔ v[0] |
+| left   (▲ right, ▽ left in same row)    | v[0] ↔ v[2], v[2] ↔ v[0] |
+| below  (▲ above, ▽ below, same col)     | v[1] ↔ v[2], v[2] ↔ v[1] |
+
+`boardAdjacentPairs: AdjacentPair[]` — all internal edges, computed once from boardShape.
+Mismatched placed edges are drawn with a red glow line during play.
+Win condition: every slot filled **and** every shared edge matches.
+
+## Puzzle generation (`generateSolution` in puzzle.ts)
+Backtracking fill (left-to-right, top-to-bottom):
+1. For each slot, shuffle remaining unused pieces from ALL_PIECES, try each with valid rotations
+2. Check at most 2 already-placed neighbours (left + above); commit if constraints pass
+3. Backtrack on failure (rare — 56 pieces, ≤12 slots, ≤2 constraints)
+4. After fill, shuffle the resulting piece array so tray order doesn't reveal board order
+5. All pieces start at rotation 0 in the tray; player taps to rotate
+
+This guarantees every daily puzzle is solvable. The seeded RNG makes puzzles reproducible per date+difficulty.
+
 ## Puzzle page state (module-level, persists across resize)
-- `pieces: PieceValues[]` — randomly selected on load
+- `pieces: PieceValues[]` — set once by `generateSolution()` on load
 - `pieceRotation: number[]` — current rotation (0–5) per piece, all start at 0
 - `boardOccupancy: (number|null)[]` — which pieceIdx is in each board slot (null = empty)
+- `boardAdjacentPairs: AdjacentPair[]` — all internal shared edges, computed once from boardShape
+- `boardShape: { rows, cols }` — set from BOARD_SHAPE_FOR_COUNT[count]
 - `drag: DragState | null` — current drag including `startX/startY` for tap detection
+- `solvedMarked: boolean` — set true once on first valid solve; gates the SOLVED overlay
 
 ## Difficulty settings
-| Difficulty | Pieces | Board shape |
-|------------|--------|-------------|
-| easy       | 3      | 1 row × 3 cols |
-| medium     | 5      | 1 row × 5 cols |
-| hard       | 10     | 2 rows × 5 cols |
+Piece count is seeded-random within a range; board shape follows from piece count.
+
+| Difficulty | Count range | Example board shapes |
+|------------|-------------|----------------------|
+| easy       | 4–6         | 2×2, 1×5, 2×3        |
+| medium     | 7–9         | 1×7, 2×4, 3×3        |
+| hard       | 10–12       | 2×5, 1×11, 3×4       |
+
+`BOARD_SHAPE_FOR_COUNT` maps each count to `{ rows, cols }`.
 
 ## Interaction
 - **Drag**: `pointerdown` on piece → `pointermove` → `pointerup` snaps to nearest empty slot
@@ -70,6 +105,7 @@ dist/               Build output (gitignored in spirit; deployed to GitHub Pages
   - Drop in tray area (y ≥ boardSectionH) → returns piece to tray
   - Drop on board with no valid slot → restores to original slot
 - **Tap** (movement < 8px): rotates piece by one step (+1 mod 6), restores to origin slot
+- Both drag-drop and tap call `checkCompletion()` so rotation can trigger the win condition
 
 ## What's been built
 - [x] Main page displaying all 56 pieces in a responsive grid
@@ -78,17 +114,21 @@ dist/               Build output (gitignored in spirit; deployed to GitHub Pages
 - [x] Drag-and-drop between tray and board (and back)
 - [x] Tap-to-rotate (6 orientations, 60° each)
 - [x] Star ghost slot in tray when a piece is placed on the board
+- [x] Daily seeded puzzles with localStorage completion tracking
+- [x] Adjacency matching constraint: shared edges between placed pieces must have equal corner values
+- [x] Red glow highlight on mismatched edges during play
+- [x] Backtracking puzzle generator — every daily puzzle is guaranteed solvable
+- [x] Win condition: all slots filled AND all adjacency constraints satisfied (checks on both drop and rotate)
 
 ## What's planned next
-- [ ] **Puzzle constraints** — generated constraints that define a unique (or near-unique) solution
-  - Constraint types: corners that sum to N, corners that are all equal, corners that are all different
-  - Visual: colour-coded arcs drawn at the relevant corners of each board slot
-  - Constraint colours: e.g. orange = sum, green = all-equal, purple = all-different
-  - Difficulty tuning: easy = fewer/looser constraints (more valid solutions); hard = tight constraints (few solutions)
-  - Puzzle generation: work backwards from a valid random placement → derive constraints → verify uniqueness
-  - Win detection: check all constraints after every drop → show "Solved!" overlay when all pass
-- [ ] Possibly: a "new puzzle" button to regenerate without leaving the page
-- [ ] Possibly: timer or move counter
+- [ ] **Different board shapes per difficulty** — currently all difficulties use the same
+  `BOARD_SHAPE_FOR_COUNT` lookup; instead give each difficulty its own curated set of
+  interesting shapes (e.g. easy = compact/convex, hard = irregular/elongated) so the
+  visual variety increases with difficulty and each puzzle feels distinct
+- [ ] **Rules page / tutorial** — so new players understand the adjacency matching rule
+  before their first puzzle
+- [ ] **Share button** — below solved overlay so players can share their daily result
+- [ ] **Timer or move counter** — optional stat shown on the solved panel
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)

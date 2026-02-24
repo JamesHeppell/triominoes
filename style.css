@@ -119,6 +119,23 @@ h1 {
 .btn-medium { background: #ff9800; color: #fff; }
 .btn-hard   { background: #e94560; color: #fff; }
 
+@keyframes attract-easy   {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+  50%      { box-shadow: 0 0 14px 6px rgba(76, 175, 80, 0.5); }
+}
+@keyframes attract-medium {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+  50%      { box-shadow: 0 0 14px 6px rgba(255, 152, 0, 0.5); }
+}
+@keyframes attract-hard   {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0); }
+  50%      { box-shadow: 0 0 14px 6px rgba(233, 69, 96, 0.5); }
+}
+
+.btn-easy:not(.btn-completed)   { animation: attract-easy   2.2s ease-in-out infinite; }
+.btn-medium:not(.btn-completed) { animation: attract-medium 2.2s ease-in-out infinite 0.4s; }
+.btn-hard:not(.btn-completed)   { animation: attract-hard   2.2s ease-in-out infinite 0.8s; }
+
 .btn.btn-completed {
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.5);
 }
@@ -131,6 +148,51 @@ h1 {
   opacity: 0.45;
   cursor: default;
   pointer-events: none;
+}
+
+/* ── How to play ──────────────────────────────────────────────────────────── */
+
+.how-to-play {
+  width: 100%;
+  max-width: 480px;
+  background: #16213e;
+  border: 1px solid #2a3a5c;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.how-to-play h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #e94560;
+  margin-bottom: 0.5rem;
+}
+
+.how-to-play ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.how-to-play li {
+  font-size: 0.85rem;
+  color: #a0a0b0;
+  padding-left: 1em;
+  position: relative;
+}
+
+.how-to-play li::before {
+  content: "·";
+  position: absolute;
+  left: 0;
+  color: #5577aa;
+}
+
+.how-to-play strong {
+  color: #e0e0e0;
 }
 
 /* ── Main page content ────────────────────────────────────────────────────── */
