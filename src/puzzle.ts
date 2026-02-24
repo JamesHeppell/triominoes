@@ -3,6 +3,7 @@ import { drawPiece, drawEmptySlot, drawStarSlot, triVertices } from "./draw";
 import { computeBoardLayout } from "./layout";
 import {
   Difficulty,
+  DEV_MODE,
   getUtcDateKey,
   dailySeed,
   seededRng,
@@ -17,8 +18,8 @@ const PIECE_COUNT_RANGE: Record<Difficulty, [number, number]> = {
   hard:   [10, 12],
 };
 
-/** Set to true locally to skip adjacency checks — lets you complete any puzzle instantly for UI testing. Never commit as true. */
-const DEV_SKIP_ADJACENCY = false;
+/** Driven by DEV_MODE in daily.ts — skip adjacency checks for UI testing. Never commit DEV_MODE as true. */
+const DEV_SKIP_ADJACENCY = DEV_MODE;
 
 const BOARD_SHAPES_FOR_COUNT: Record<number, { rows: number; cols: number }[]> = {
   4:  [{ rows: 2, cols: 2 }, { rows: 1, cols: 4 }],
@@ -314,16 +315,17 @@ function recomputeLayout(availH: number): void {
   const { rows, cols } = boardShape;
   const n = pieces.length;
   const available = window.innerWidth - BODY_MARGIN;
-  const BOARD_PAD = 20;
+  const BOARD_PAD_X = 20;  // must match PAD_X in layout.ts
+  const BOARD_PAD_Y = 40;  // must match PAD_Y in layout.ts
 
   // ── Find the largest R that fits both width and height ─────────────────────
   const rFromWidth = Math.floor(
-    Math.min(60, (available - 2 * BOARD_PAD) / ((cols + 1) * (Math.sqrt(3) / 2)))
+    Math.min(60, (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2)))
   );
 
   let bestR = 10;
   for (let r = rFromWidth; r >= 10; r--) {
-    const boardH  = Math.round(rows * 1.5 * r + 2 * BOARD_PAD);
+    const boardH  = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
     const cellW   = r * (84 / 30);
     const cellH   = r * (78 / 30);
     const tCols   = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / cellW)));

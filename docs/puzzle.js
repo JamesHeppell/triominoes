@@ -81,17 +81,19 @@
   var BODY_MARGIN = 16;
   function computeBoardLayout(nRows, nCols, maxR = 60) {
     const available = window.innerWidth - BODY_MARGIN;
-    const PAD = 20;
-    const rFromWidth = (available - 2 * PAD) / ((nCols + 1) * (Math.sqrt(3) / 2));
+    const PAD_X = 20;
+    const PAD_Y = 40;
+    const rFromWidth = (available - 2 * PAD_X) / ((nCols + 1) * (Math.sqrt(3) / 2));
     const r = Math.round(Math.min(maxR, rFromWidth));
     const s = r * Math.sqrt(3);
     const h = r * 1.5;
-    const canvasW2 = Math.round((nCols + 1) * (s / 2) + 2 * PAD);
-    const canvasH2 = Math.round(nRows * h + 2 * PAD);
-    return { r, s, h, canvasW: canvasW2, canvasH: canvasH2, padX: PAD, padY: PAD };
+    const canvasW2 = Math.round((nCols + 1) * (s / 2) + 2 * PAD_X);
+    const canvasH2 = Math.round(nRows * h + 2 * PAD_Y);
+    return { r, s, h, canvasW: canvasW2, canvasH: canvasH2, padX: PAD_X, padY: PAD_Y };
   }
 
   // src/daily.ts
+  var DEV_MODE = true;
   function getUtcDateKey() {
     const now = /* @__PURE__ */ new Date();
     const y = now.getUTCFullYear();
@@ -108,10 +110,14 @@
       return ((t ^ t >>> 14) >>> 0) / 4294967296;
     };
   }
+  var DEV_OFFSET_KEY = "triominoes-dev-offset";
+  function getDevOffset() {
+    return DEV_MODE ? parseInt(localStorage.getItem(DEV_OFFSET_KEY) ?? "0", 10) : 0;
+  }
   function dailySeed(dateKey, difficulty) {
     const n = parseInt(dateKey.replace(/-/g, ""), 10);
     const d = { easy: 1, medium: 2, hard: 3 };
-    return n * 10 + d[difficulty] >>> 0;
+    return n * 10 + d[difficulty] + getDevOffset() * 1e3 >>> 0;
   }
   var STORAGE_KEY = "triominoes-daily-v1";
   function loadRecord() {
@@ -146,7 +152,7 @@
     medium: [7, 9],
     hard: [10, 12]
   };
-  var DEV_SKIP_ADJACENCY = false;
+  var DEV_SKIP_ADJACENCY = DEV_MODE;
   var BOARD_SHAPES_FOR_COUNT = {
     4: [{ rows: 2, cols: 2 }, { rows: 1, cols: 4 }],
     5: [{ rows: 1, cols: 5 }],
@@ -315,13 +321,14 @@
     const { rows, cols } = boardShape;
     const n = pieces.length;
     const available = window.innerWidth - BODY_MARGIN2;
-    const BOARD_PAD = 20;
+    const BOARD_PAD_X = 20;
+    const BOARD_PAD_Y = 40;
     const rFromWidth = Math.floor(
-      Math.min(60, (available - 2 * BOARD_PAD) / ((cols + 1) * (Math.sqrt(3) / 2)))
+      Math.min(60, (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2)))
     );
     let bestR = 10;
     for (let r = rFromWidth; r >= 10; r--) {
-      const boardH = Math.round(rows * 1.5 * r + 2 * BOARD_PAD);
+      const boardH = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
       const cellW = r * (84 / 30);
       const cellH = r * (78 / 30);
       const tCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / cellW)));

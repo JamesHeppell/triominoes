@@ -135,9 +135,6 @@ randomly via the daily RNG so the board shape varies each day.
   could weight or restrict options so easy always gets compact shapes and hard gets elongated ones
 - [ ] **Full rules / tutorial page** — a dedicated page or modal explaining the adjacency rule
   with a worked example for first-time players
-- [ ] **Best-time tracking** — persist the fastest solve time per difficulty across multiple days
-  and show it on the home page or solved panel
-- [ ] **Move counter** — count the number of placements/rotations and show it alongside the time
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)

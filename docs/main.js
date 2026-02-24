@@ -85,6 +85,7 @@
   }
 
   // src/daily.ts
+  var DEV_MODE = true;
   function getUtcDateKey() {
     const now = /* @__PURE__ */ new Date();
     const y = now.getUTCFullYear();
@@ -96,6 +97,15 @@
     const now = /* @__PURE__ */ new Date();
     const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
     return next - now.getTime();
+  }
+  var DEV_OFFSET_KEY = "triominoes-dev-offset";
+  function getDevOffset() {
+    return DEV_MODE ? parseInt(localStorage.getItem(DEV_OFFSET_KEY) ?? "0", 10) : 0;
+  }
+  function incrementDevOffset() {
+    if (!DEV_MODE)
+      return;
+    localStorage.setItem(DEV_OFFSET_KEY, String(getDevOffset() + 1));
   }
   var STORAGE_KEY = "triominoes-daily-v1";
   function loadRecord() {
@@ -187,6 +197,17 @@
     render(canvas, ctx, status);
     updateButtonStates();
     startCountdown();
+    if (DEV_MODE) {
+      const btn = document.createElement("button");
+      btn.textContent = "Reset";
+      btn.className = "btn-dev-reset";
+      btn.addEventListener("click", () => {
+        resetDailyProgress(getUtcDateKey());
+        incrementDevOffset();
+        window.location.reload();
+      });
+      document.body.appendChild(btn);
+    }
     let lastWidth = window.innerWidth;
     let resizeTimer;
     window.addEventListener("resize", () => {

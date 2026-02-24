@@ -80,15 +80,16 @@ export interface BoardLayout {
  */
 export function computeBoardLayout(nRows: number, nCols: number, maxR = 60): BoardLayout {
   const available = window.innerWidth - BODY_MARGIN;
-  const PAD = 20;
+  const PAD_X = 20;
+  const PAD_Y = 40;
 
   const rFromWidth =
-    (available - 2 * PAD) / ((nCols + 1) * (Math.sqrt(3) / 2));
+    (available - 2 * PAD_X) / ((nCols + 1) * (Math.sqrt(3) / 2));
   const r = Math.round(Math.min(maxR, rFromWidth));
   const s = r * Math.sqrt(3);
   const h = r * 1.5;
-  const canvasW = Math.round((nCols + 1) * (s / 2) + 2 * PAD);
-  const canvasH = Math.round(nRows * h + 2 * PAD);
+  const canvasW = Math.round((nCols + 1) * (s / 2) + 2 * PAD_X);
+  const canvasH = Math.round(nRows * h + 2 * PAD_Y);
 
-  return { r, s, h, canvasW, canvasH, padX: PAD, padY: PAD };
+  return { r, s, h, canvasW, canvasH, padX: PAD_X, padY: PAD_Y };
 }

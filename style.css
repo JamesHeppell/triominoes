@@ -25,7 +25,12 @@ body {
 
 header {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+/* Main page only — push title/buttons down to ~¼ of viewport */
+header:not(.puzzle-header) {
+  padding-top: clamp(2rem, 8vh, 4rem);
 }
 
 h1 {
@@ -37,13 +42,13 @@ h1 {
 .subtitle {
   color: #a0a0b0;
   font-size: 0.9rem;
-  margin-top: 0.25rem;
+  margin-top: 1rem;
 }
 
 .next-puzzle {
   color: #a0a0b0;
   font-size: 0.8rem;
-  margin-top: 0.75rem;
+  margin-top: 1.25rem;
 }
 
 .next-puzzle #countdown {
@@ -65,6 +70,27 @@ h1 {
 }
 
 #reset-btn:hover {
+  border-color: #e94560;
+  color: #e94560;
+}
+
+.btn-dev-reset {
+  position: fixed;
+  top: 0.65rem;
+  right: 0.75rem;
+  background: none;
+  border: 1px dashed #5577aa;
+  color: #5577aa;
+  border-radius: 4px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0.6;
+  z-index: 999;
+}
+
+.btn-dev-reset:hover {
+  opacity: 1;
   border-color: #e94560;
   color: #e94560;
 }
@@ -95,7 +121,7 @@ h1 {
 .difficulty-nav {
   display: flex;
   gap: 0.75rem;
-  margin-top: 1.25rem;
+  margin-top: 2rem;
   justify-content: center;
   flex-wrap: wrap;
 }
@@ -168,7 +194,7 @@ h1 {
   border: 1px solid #2a3a5c;
   border-radius: 8px;
   padding: 0.75rem 1rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 2rem;
 }
 
 .how-to-play h2 {

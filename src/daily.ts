@@ -1,5 +1,8 @@
 export type Difficulty = "easy" | "medium" | "hard";
 
+/** Set to true locally to enable dev features (reset button, skip adjacency). Never commit as true. */
+export const DEV_MODE = true;
+
 // ─── UTC date helpers ─────────────────────────────────────────────────────────
 
 /** Returns today's UTC date string, e.g. "2026-02-22". */
@@ -31,11 +34,22 @@ export function seededRng(seed: number): () => number {
   };
 }
 
+const DEV_OFFSET_KEY = "triominoes-dev-offset";
+
+export function getDevOffset(): number {
+  return DEV_MODE ? parseInt(localStorage.getItem(DEV_OFFSET_KEY) ?? "0", 10) : 0;
+}
+
+export function incrementDevOffset(): void {
+  if (!DEV_MODE) return;
+  localStorage.setItem(DEV_OFFSET_KEY, String(getDevOffset() + 1));
+}
+
 /** Deterministic seed for a given UTC date + difficulty. */
 export function dailySeed(dateKey: string, difficulty: Difficulty): number {
   const n = parseInt(dateKey.replace(/-/g, ""), 10);
   const d: Record<Difficulty, number> = { easy: 1, medium: 2, hard: 3 };
-  return ((n * 10 + d[difficulty]) >>> 0);
+  return ((n * 10 + d[difficulty] + getDevOffset() * 1000) >>> 0);
 }
 
 // ─── Completion state (localStorage) ─────────────────────────────────────────

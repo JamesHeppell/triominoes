@@ -1,7 +1,7 @@
 import { ALL_PIECES } from "./pieces";
 import { drawPiece } from "./draw";
 import { computeGridLayout } from "./layout";
-import { Difficulty, getUtcDateKey, isDailyComplete, msUntilUtcMidnight, resetDailyProgress } from "./daily";
+import { Difficulty, DEV_MODE, getUtcDateKey, isDailyComplete, msUntilUtcMidnight, resetDailyProgress, incrementDevOffset } from "./daily";
 
 function render(
   canvas: HTMLCanvasElement,
@@ -88,6 +88,18 @@ function init(): void {
   render(canvas, ctx, status);
   updateButtonStates();
   startCountdown();
+
+  if (DEV_MODE) {
+    const btn = document.createElement("button");
+    btn.textContent = "Reset";
+    btn.className = "btn-dev-reset";
+    btn.addEventListener("click", () => {
+      resetDailyProgress(getUtcDateKey());
+      incrementDevOffset();
+      window.location.reload();
+    });
+    document.body.appendChild(btn);
+  }
 
   let lastWidth = window.innerWidth;
   let resizeTimer: ReturnType<typeof setTimeout>;
