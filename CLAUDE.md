@@ -97,7 +97,8 @@ Piece count is seeded-random within a range; board shape follows from piece coun
 | medium     | 7–9         | 1×7, 2×4, 3×3        |
 | hard       | 10–12       | 2×5, 1×11, 3×4       |
 
-`BOARD_SHAPE_FOR_COUNT` maps each count to `{ rows, cols }`.
+`BOARD_SHAPES_FOR_COUNT` maps each count to an array of `{ rows, cols }` options; one is chosen
+randomly via the daily RNG so the board shape varies each day.
 
 ## Interaction
 - **Drag**: `pointerdown` on piece → `pointermove` → `pointerup` snaps to nearest empty slot
@@ -119,16 +120,24 @@ Piece count is seeded-random within a range; board shape follows from piece coun
 - [x] Red glow highlight on mismatched edges during play
 - [x] Backtracking puzzle generator — every daily puzzle is guaranteed solvable
 - [x] Win condition: all slots filled AND all adjacency constraints satisfied (checks on both drop and rotate)
+- [x] Random board shape per day — `BOARD_SHAPES_FOR_COUNT` holds multiple options per piece count,
+  selected by the daily RNG (e.g. 2×3, 3×2, or 1×6 for 6-piece easy puzzles)
+- [x] How-to-play card on home page (between nav and piece grid)
+- [x] Pulsing glow animation on difficulty buttons until that difficulty is completed
+- [x] Share button on solved panel — Web Share API on mobile, clipboard fallback on desktop
+- [x] Hidden solve timer — starts on page load, stops on first valid solve
+- [x] Solve time displayed on solved panel ("Solved in 3m 42s") and included in share text
+- [x] Solve time persisted in localStorage — shown correctly when revisiting a completed puzzle
+- [x] `DEV_SKIP_ADJACENCY` flag in puzzle.ts — set to `true` to skip adjacency checks for UI testing
 
 ## What's planned next
-- [ ] **Different board shapes per difficulty** — currently all difficulties use the same
-  `BOARD_SHAPE_FOR_COUNT` lookup; instead give each difficulty its own curated set of
-  interesting shapes (e.g. easy = compact/convex, hard = irregular/elongated) so the
-  visual variety increases with difficulty and each puzzle feels distinct
-- [ ] **Rules page / tutorial** — so new players understand the adjacency matching rule
-  before their first puzzle
-- [ ] **Share button** — below solved overlay so players can share their daily result
-- [ ] **Timer or move counter** — optional stat shown on the solved panel
+- [ ] **Curated shapes per difficulty** — currently shapes are random across all difficulties;
+  could weight or restrict options so easy always gets compact shapes and hard gets elongated ones
+- [ ] **Full rules / tutorial page** — a dedicated page or modal explaining the adjacency rule
+  with a worked example for first-time players
+- [ ] **Best-time tracking** — persist the fastest solve time per difficulty across multiple days
+  and show it on the home page or solved panel
+- [ ] **Move counter** — count the number of placements/rotations and show it alongside the time
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)
