@@ -312,6 +312,14 @@ main {
   margin-bottom: 0.25rem;
 }
 
+.solve-time {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #f9c74f;
+  margin: 0.1rem 0 0.4rem;
+  min-height: 1.4em; /* reserve space even when empty */
+}
+
 #solved-panel .solved-sub {
   color: #a0a0b0;
   font-size: 0.9rem;

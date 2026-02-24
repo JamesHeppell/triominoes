@@ -42,7 +42,12 @@ export function dailySeed(dateKey: string, difficulty: Difficulty): number {
 
 const STORAGE_KEY = "triominoes-daily-v1";
 
-type CompletionRecord = Record<string, Partial<Record<Difficulty, boolean>>>;
+/**
+ * Per-difficulty entry: `true` = completed (legacy, no time recorded);
+ * `number` = completed, value is solve time in milliseconds.
+ */
+type DifficultyEntry = boolean | number;
+type CompletionRecord = Record<string, Partial<Record<Difficulty, DifficultyEntry>>>;
 
 function loadRecord(): CompletionRecord {
   try {
@@ -57,13 +62,20 @@ function saveRecord(record: CompletionRecord): void {
 }
 
 export function isDailyComplete(dateKey: string, difficulty: Difficulty): boolean {
-  return loadRecord()[dateKey]?.[difficulty] === true;
+  const val = loadRecord()[dateKey]?.[difficulty];
+  return val === true || typeof val === "number";
 }
 
-export function markDailyComplete(dateKey: string, difficulty: Difficulty): void {
+/** Returns the stored solve time in ms, or null if not recorded. */
+export function getDailySolveTime(dateKey: string, difficulty: Difficulty): number | null {
+  const val = loadRecord()[dateKey]?.[difficulty];
+  return typeof val === "number" ? val : null;
+}
+
+export function markDailyComplete(dateKey: string, difficulty: Difficulty, solveTimeMs?: number): void {
   const record = loadRecord();
   if (!record[dateKey]) record[dateKey] = {};
-  record[dateKey][difficulty] = true;
+  record[dateKey][difficulty] = solveTimeMs !== undefined ? solveTimeMs : true;
   saveRecord(record);
 }
 

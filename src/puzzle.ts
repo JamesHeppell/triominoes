@@ -8,6 +8,7 @@ import {
   seededRng,
   markDailyComplete,
   isDailyComplete,
+  getDailySolveTime,
 } from "./daily";
 
 const PIECE_COUNT_RANGE: Record<Difficulty, [number, number]> = {
@@ -15,6 +16,9 @@ const PIECE_COUNT_RANGE: Record<Difficulty, [number, number]> = {
   medium: [7, 9],
   hard:   [10, 12],
 };
+
+/** Set to true locally to skip adjacency checks — lets you complete any puzzle instantly for UI testing. Never commit as true. */
+const DEV_SKIP_ADJACENCY = false;
 
 const BOARD_SHAPES_FOR_COUNT: Record<number, { rows: number; cols: number }[]> = {
   4:  [{ rows: 2, cols: 2 }, { rows: 1, cols: 4 }],
@@ -54,6 +58,11 @@ let currentDifficulty: Difficulty = "easy";
 
 /** Prevents marking completion more than once per session. */
 let solvedMarked = false;
+
+/** epoch ms when the puzzle was loaded; used to compute solve time. */
+let startTime = 0;
+/** How long the player took to solve (ms), or null if not yet solved / pre-solved. */
+let solveTimeMs: number | null = null;
 
 // Layout – recomputed on resize (positions only, never touches occupancy)
 let R = 30;
@@ -170,6 +179,7 @@ function adjacencyMatches(slotA: number, slotB: number, type: AdjacencyType): bo
 /** True only when every slot is filled AND every shared edge has matching values. */
 function isPuzzleSolved(): boolean {
   if (!boardOccupancy.length || !boardOccupancy.every(p => p !== null)) return false;
+  if (DEV_SKIP_ADJACENCY) return true;
   return boardAdjacentPairs.every(({ slotA, slotB, type }) => adjacencyMatches(slotA, slotB, type));
 }
 
@@ -620,17 +630,28 @@ function updateSolvedPanel(): void {
   }
 
   const allDone = difficulties.every(d => isDailyComplete(currentDateKey, d));
-  const subEl = document.getElementById("solved-sub");
-  const navEl = document.getElementById("solved-nav");
-  if (subEl) subEl.textContent = allDone ? "You've solved all of today's puzzles!" : "Try a different difficulty:";
-  if (navEl) (navEl as HTMLElement).hidden = allDone;
+  const subEl  = document.getElementById("solved-sub");
+  const navEl  = document.getElementById("solved-nav");
+  const timeEl = document.getElementById("solve-time");
+  if (subEl)  subEl.textContent  = allDone ? "You've solved all of today's puzzles!" : "Try a different difficulty:";
+  if (navEl)  (navEl as HTMLElement).hidden = allDone;
+  if (timeEl) timeEl.textContent = solveTimeMs !== null ? `Solved in ${formatSolveTime(solveTimeMs)}` : "";
+}
+
+function formatSolveTime(ms: number): string {
+  const totalSecs = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  if (mins === 0) return `${secs}s`;
+  return `${mins}m ${secs}s`;
 }
 
 function checkCompletion(): void {
   if (solvedMarked) return;
   if (isPuzzleSolved()) {
     solvedMarked = true;
-    markDailyComplete(currentDateKey, currentDifficulty);
+    solveTimeMs = Date.now() - startTime;
+    markDailyComplete(currentDateKey, currentDifficulty, solveTimeMs);
   }
 }
 
@@ -656,6 +677,8 @@ function init(): void {
   currentDateKey    = getUtcDateKey();
   currentDifficulty = difficulty;
   solvedMarked      = false;
+  solveTimeMs       = null;
+  startTime         = Date.now();
   const rng      = seededRng(dailySeed(currentDateKey, difficulty));
   const [min, max] = PIECE_COUNT_RANGE[difficulty];
   const count    = min + Math.floor(rng() * (max - min + 1));
@@ -684,7 +707,8 @@ function init(): void {
       const label   = currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
       const homeUrl = window.location.origin +
                       window.location.pathname.replace("puzzle.html", "index.html");
-      const text    = `I solved today's Triominoes puzzle (${label}) 🎉`;
+      const timeStr = solveTimeMs !== null ? ` in ${formatSolveTime(solveTimeMs)}` : "";
+      const text    = `I solved today's Triominoes puzzle (${label})${timeStr} 🎉`;
       try {
         if (navigator.share) {
           await navigator.share({ title: "Triominoes", text, url: homeUrl });
@@ -700,6 +724,7 @@ function init(): void {
   // If today's puzzle is already complete, show the solved state immediately
   if (isDailyComplete(currentDateKey, difficulty)) {
     solvedMarked = true;
+    solveTimeMs = getDailySolveTime(currentDateKey, difficulty);
     for (let i = 0; i < boardOccupancy.length; i++) {
       boardOccupancy[i] = i;
       // Flip rotation to match slot orientation (all pieces start at rotation 0 = up)

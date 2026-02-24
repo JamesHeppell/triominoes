@@ -109,7 +109,8 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
   }
   function isDailyComplete(dateKey, difficulty) {
-    return loadRecord()[dateKey]?.[difficulty] === true;
+    const val = loadRecord()[dateKey]?.[difficulty];
+    return val === true || typeof val === "number";
   }
   function resetDailyProgress(dateKey) {
     const record = loadRecord();

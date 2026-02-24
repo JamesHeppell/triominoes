@@ -125,13 +125,18 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
   }
   function isDailyComplete(dateKey, difficulty) {
-    return loadRecord()[dateKey]?.[difficulty] === true;
+    const val = loadRecord()[dateKey]?.[difficulty];
+    return val === true || typeof val === "number";
   }
-  function markDailyComplete(dateKey, difficulty) {
+  function getDailySolveTime(dateKey, difficulty) {
+    const val = loadRecord()[dateKey]?.[difficulty];
+    return typeof val === "number" ? val : null;
+  }
+  function markDailyComplete(dateKey, difficulty, solveTimeMs2) {
     const record = loadRecord();
     if (!record[dateKey])
       record[dateKey] = {};
-    record[dateKey][difficulty] = true;
+    record[dateKey][difficulty] = solveTimeMs2 !== void 0 ? solveTimeMs2 : true;
     saveRecord(record);
   }
 
@@ -141,6 +146,7 @@
     medium: [7, 9],
     hard: [10, 12]
   };
+  var DEV_SKIP_ADJACENCY = false;
   var BOARD_SHAPES_FOR_COUNT = {
     4: [{ rows: 2, cols: 2 }, { rows: 1, cols: 4 }],
     5: [{ rows: 1, cols: 5 }],
@@ -160,6 +166,8 @@
   var currentDateKey = "";
   var currentDifficulty = "easy";
   var solvedMarked = false;
+  var startTime = 0;
+  var solveTimeMs = null;
   var R = 30;
   var canvasW = 400;
   var canvasH = 400;
@@ -216,6 +224,8 @@
   function isPuzzleSolved() {
     if (!boardOccupancy.length || !boardOccupancy.every((p) => p !== null))
       return false;
+    if (DEV_SKIP_ADJACENCY)
+      return true;
     return boardAdjacentPairs.every(({ slotA, slotB, type }) => adjacencyMatches(slotA, slotB, type));
   }
   function rotationIsUp(rotation) {
@@ -561,17 +571,29 @@
     const allDone = difficulties.every((d) => isDailyComplete(currentDateKey, d));
     const subEl = document.getElementById("solved-sub");
     const navEl = document.getElementById("solved-nav");
+    const timeEl = document.getElementById("solve-time");
     if (subEl)
       subEl.textContent = allDone ? "You've solved all of today's puzzles!" : "Try a different difficulty:";
     if (navEl)
       navEl.hidden = allDone;
+    if (timeEl)
+      timeEl.textContent = solveTimeMs !== null ? `Solved in ${formatSolveTime(solveTimeMs)}` : "";
+  }
+  function formatSolveTime(ms) {
+    const totalSecs = Math.floor(ms / 1e3);
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    if (mins === 0)
+      return `${secs}s`;
+    return `${mins}m ${secs}s`;
   }
   function checkCompletion() {
     if (solvedMarked)
       return;
     if (isPuzzleSolved()) {
       solvedMarked = true;
-      markDailyComplete(currentDateKey, currentDifficulty);
+      solveTimeMs = Date.now() - startTime;
+      markDailyComplete(currentDateKey, currentDifficulty, solveTimeMs);
     }
   }
   function init() {
@@ -593,6 +615,8 @@
     currentDateKey = getUtcDateKey();
     currentDifficulty = difficulty;
     solvedMarked = false;
+    solveTimeMs = null;
+    startTime = Date.now();
     const rng = seededRng(dailySeed(currentDateKey, difficulty));
     const [min, max] = PIECE_COUNT_RANGE[difficulty];
     const count = min + Math.floor(rng() * (max - min + 1));
@@ -617,7 +641,8 @@
       shareBtn.addEventListener("click", async () => {
         const label = currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
         const homeUrl = window.location.origin + window.location.pathname.replace("puzzle.html", "index.html");
-        const text = `I solved today's Triominoes puzzle (${label}) \u{1F389}`;
+        const timeStr = solveTimeMs !== null ? ` in ${formatSolveTime(solveTimeMs)}` : "";
+        const text = `I solved today's Triominoes puzzle (${label})${timeStr} \u{1F389}`;
         try {
           if (navigator.share) {
             await navigator.share({ title: "Triominoes", text, url: homeUrl });
@@ -635,6 +660,7 @@ ${homeUrl}`);
     }
     if (isDailyComplete(currentDateKey, difficulty)) {
       solvedMarked = true;
+      solveTimeMs = getDailySolveTime(currentDateKey, difficulty);
       for (let i = 0; i < boardOccupancy.length; i++) {
         boardOccupancy[i] = i;
         if (!boardSlotPos[i].up)
