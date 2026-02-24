@@ -678,6 +678,25 @@ function init(): void {
   redraw();
   attachPointerEvents(canvas, ctx);
 
+  const shareBtn = document.getElementById("share-btn") as HTMLButtonElement | null;
+  if (shareBtn) {
+    shareBtn.addEventListener("click", async () => {
+      const label   = currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
+      const homeUrl = window.location.origin +
+                      window.location.pathname.replace("puzzle.html", "index.html");
+      const text    = `I solved today's Triominoes puzzle (${label}) 🎉`;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: "Triominoes", text, url: homeUrl });
+        } else {
+          await navigator.clipboard.writeText(`${text}\n${homeUrl}`);
+          shareBtn.textContent = "Copied!";
+          setTimeout(() => { shareBtn.textContent = "Share result"; }, 2000);
+        }
+      } catch { /* cancelled */ }
+    });
+  }
+
   // If today's puzzle is already complete, show the solved state immediately
   if (isDailyComplete(currentDateKey, difficulty)) {
     solvedMarked = true;

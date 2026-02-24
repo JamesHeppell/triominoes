@@ -612,6 +612,27 @@
     };
     redraw();
     attachPointerEvents(canvas, ctx);
+    const shareBtn = document.getElementById("share-btn");
+    if (shareBtn) {
+      shareBtn.addEventListener("click", async () => {
+        const label = currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
+        const homeUrl = window.location.origin + window.location.pathname.replace("puzzle.html", "index.html");
+        const text = `I solved today's Triominoes puzzle (${label}) \u{1F389}`;
+        try {
+          if (navigator.share) {
+            await navigator.share({ title: "Triominoes", text, url: homeUrl });
+          } else {
+            await navigator.clipboard.writeText(`${text}
+${homeUrl}`);
+            shareBtn.textContent = "Copied!";
+            setTimeout(() => {
+              shareBtn.textContent = "Share result";
+            }, 2e3);
+          }
+        } catch {
+        }
+      });
+    }
     if (isDailyComplete(currentDateKey, difficulty)) {
       solvedMarked = true;
       for (let i = 0; i < boardOccupancy.length; i++) {
