@@ -433,15 +433,21 @@ function render(ctx: CanvasRenderingContext2D): void {
                      : type === 'left'  ? [verts[0], verts[2]]
                      :                   [verts[1], verts[2]]; // 'below'
 
+      // Inset 10% from each end so the indicator is slightly shorter than the edge
+      const inset = 0.1;
+      const i1: [number, number] = [v1[0] + inset * (v2[0] - v1[0]), v1[1] + inset * (v2[1] - v1[1])];
+      const i2: [number, number] = [v2[0] - inset * (v2[0] - v1[0]), v2[1] - inset * (v2[1] - v1[1])];
+
       ctx.save();
       ctx.strokeStyle = "#ff4040";
-      ctx.lineWidth = Math.max(2, Math.round(R * 0.14));
+      ctx.lineWidth = Math.max(1, Math.round(R * 0.07));
       ctx.lineCap = "round";
+      ctx.setLineDash([Math.round(R * 0.18), Math.round(R * 0.12)]);
       ctx.shadowColor = "#ff2222";
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 6;
       ctx.beginPath();
-      ctx.moveTo(v1[0], v1[1]);
-      ctx.lineTo(v2[0], v2[1]);
+      ctx.moveTo(i1[0], i1[1]);
+      ctx.lineTo(i2[0], i2[1]);
       ctx.stroke();
       ctx.restore();
     }
@@ -515,6 +521,16 @@ function hitTray(x: number, y: number): number {
     // Check both orientations — slot renders as a star (▲ + ▽)
     if (pointInTriangle(x, y, triVertices(cx, cy, R, true))) return i;
     if (pointInTriangle(x, y, triVertices(cx, cy, R, false))) return i;
+  }
+  return -1;
+}
+
+/** Occupied board slot index at exact canvas point, or -1. */
+function hitOccupiedBoard(x: number, y: number): number {
+  for (let i = 0; i < boardSlotPos.length; i++) {
+    if (boardOccupancy[i] === null) continue;
+    const { cx, cy, up } = boardSlotPos[i];
+    if (pointInTriangle(x, y, triVertices(cx, cy, R, up))) return i;
   }
   return -1;
 }
@@ -595,21 +611,41 @@ function attachPointerEvents(
       return;
     }
 
-    const target = snapTarget(x, y);
-    if (target !== -1) {
-      // Auto-adapt rotation to match the slot's up/down orientation
-      const slotUp = boardSlotPos[target].up;
+    const swapSlot = hitOccupiedBoard(x, y);
+    if (swapSlot !== -1) {
+      // Swap: place dragged piece in the occupied slot, displace the other piece
+      const displacedIdx = boardOccupancy[swapSlot]!;
+      const slotUp = boardSlotPos[swapSlot].up;
       if (rotationIsUp(pieceRotation[pieceIdx]) !== slotUp) {
         pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 3) % 6;
       }
-      boardOccupancy[target] = pieceIdx;
-    } else if (y >= boardSectionH) {
-      // Dropped anywhere in the tray area → return piece to its tray home.
-    } else if (fromBoard !== null) {
-      // Dropped on the board area but no valid slot → restore to original slot
-      boardOccupancy[fromBoard] = pieceIdx;
+      boardOccupancy[swapSlot] = pieceIdx;
+      if (fromBoard !== null) {
+        // Adapt displaced piece's rotation to match the origin slot's orientation
+        const fromUp = boardSlotPos[fromBoard].up;
+        if (rotationIsUp(pieceRotation[displacedIdx]) !== fromUp) {
+          pieceRotation[displacedIdx] = (pieceRotation[displacedIdx] + 3) % 6;
+        }
+        boardOccupancy[fromBoard] = displacedIdx;
+      }
+      // else: dragged from tray — displaced piece simply returns to tray
+    } else {
+      const target = snapTarget(x, y);
+      if (target !== -1) {
+        // Auto-adapt rotation to match the slot's up/down orientation
+        const slotUp = boardSlotPos[target].up;
+        if (rotationIsUp(pieceRotation[pieceIdx]) !== slotUp) {
+          pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 3) % 6;
+        }
+        boardOccupancy[target] = pieceIdx;
+      } else if (y >= boardSectionH) {
+        // Dropped anywhere in the tray area → return piece to its tray home.
+      } else if (fromBoard !== null) {
+        // Dropped on the board area but no valid slot → restore to original slot
+        boardOccupancy[fromBoard] = pieceIdx;
+      }
+      // else: lifted from tray, dropped on board with no valid slot → back to tray
     }
-    // else: lifted from tray, dropped on board with no valid slot → back to tray
 
     checkCompletion();
     render(ctx);
