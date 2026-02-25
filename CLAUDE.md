@@ -66,16 +66,41 @@ Shared corners per edge direction (▲ = slotA, ▽ = slotB — always, by conve
 | below  (▲ above, ▽ below, same col)     | v[1] ↔ v[2], v[2] ↔ v[1] |
 
 `boardAdjacentPairs: AdjacentPair[]` — all internal edges, computed once from boardShape.
-Mismatched placed edges are drawn with a red glow line during play.
-Win condition: every slot filled **and** every shared edge matches.
+Mismatched placed edges are drawn with a red dotted line (inset 10%, half-width) during play.
+Win condition: every slot filled **and** every shared edge matches **and** all extra constraints pass.
+
+## Extra constraints (`boardConstraints` in puzzle.ts)
+Generated after `generateSolution()` using the known solution values so they are always satisfiable.
+Targets are read directly from the solution; the seeded RNG picks and shuffles candidates.
+
+| Kind | Rule | Badge label |
+|------|------|-------------|
+| `sum` (1 slot) | Sum of the 3 corner values = target | target number |
+| `sum` (2 slots) | Sum of all 6 corner values across both adjacent slots = target | target number |
+| `all-different` | All 3 corner values are distinct | `≠` |
+| `all-same` | All 3 corner values are equal | `≡` |
+
+Count by difficulty: **easy = 1**, **medium = 2**, **hard = 4**.
+Allowed kinds: easy → sum-single only; medium → sum-single, sum-pair, all-different; hard → all.
+
+`generateConstraints(solutionValues, rng)` builds a candidate pool, Fisher-Yates shuffles it,
+then greedily picks non-overlapping constraints (no slot used by two constraints).
+
+**Visual**: constrained slots get a semi-transparent colour tint (28% alpha). A filled circle badge
+(radius `R × 0.22`) sits at the centroid of the slot(s) — midpoint of both centroids for pairs.
+Badge colour: constraint colour while unfilled → green (#22c55e) when satisfied → red (#ef4444) when violated.
+Palette: `CONSTRAINT_COLORS = ['#7c3aed', '#ea580c', '#16a34a', '#0891b2']` (violet, orange, green, cyan).
+
+`constraintSatisfied(c)` returns true if any constrained slot is still empty (no early penalty).
 
 ## Puzzle generation (`generateSolution` in puzzle.ts)
 Backtracking fill (left-to-right, top-to-bottom):
 1. For each slot, shuffle remaining unused pieces from ALL_PIECES, try each with valid rotations
 2. Check at most 2 already-placed neighbours (left + above); commit if constraints pass
 3. Backtrack on failure (rare — 56 pieces, ≤12 slots, ≤2 constraints)
-4. After fill, shuffle the resulting piece array so tray order doesn't reveal board order
-5. All pieces start at rotation 0 in the tray; player taps to rotate
+4. Before shuffling, capture `solutionValues: PieceValues[]` (rotated values per slot) for constraint generation
+5. Shuffle the resulting piece array so tray order doesn't reveal board order
+6. Returns `{ pieces, solutionValues }`; all pieces start at rotation 0 in the tray
 
 This guarantees every daily puzzle is solvable. The seeded RNG makes puzzles reproducible per date+difficulty.
 
@@ -84,6 +109,7 @@ This guarantees every daily puzzle is solvable. The seeded RNG makes puzzles rep
 - `pieceRotation: number[]` — current rotation (0–5) per piece, all start at 0
 - `boardOccupancy: (number|null)[]` — which pieceIdx is in each board slot (null = empty)
 - `boardAdjacentPairs: AdjacentPair[]` — all internal shared edges, computed once from boardShape
+- `boardConstraints: Constraint[]` — extra constraints generated after solution; checked in `isPuzzleSolved()`
 - `boardShape: { rows, cols }` — set from BOARD_SHAPE_FOR_COUNT[count]
 - `drag: DragState | null` — current drag including `startX/startY` for tap detection
 - `solvedMarked: boolean` — set true once on first valid solve; gates the SOLVED overlay
@@ -103,6 +129,7 @@ randomly via the daily RNG so the board shape varies each day.
 ## Interaction
 - **Drag**: `pointerdown` on piece → `pointermove` → `pointerup` snaps to nearest empty slot
   - Snap: exact point-in-triangle first, then nearest centroid within 1.2R
+  - Drop on occupied slot → **swap**: dragged piece takes that slot, displaced piece goes to origin slot (or tray)
   - Drop in tray area (y ≥ boardSectionH) → returns piece to tray
   - Drop on board with no valid slot → restores to original slot
 - **Tap** (movement < 8px): rotates piece by one step (+1 mod 6), restores to origin slot
@@ -113,13 +140,14 @@ randomly via the daily RNG so the board shape varies each day.
 - [x] Easy/Medium/Hard difficulty nav on main page
 - [x] Puzzle page with triangular board + tray on a single canvas
 - [x] Drag-and-drop between tray and board (and back)
+- [x] Swap pieces by dragging one onto another already-placed piece
 - [x] Tap-to-rotate (6 orientations, 60° each)
 - [x] Star ghost slot in tray when a piece is placed on the board
 - [x] Daily seeded puzzles with localStorage completion tracking
 - [x] Adjacency matching constraint: shared edges between placed pieces must have equal corner values
-- [x] Red glow highlight on mismatched edges during play
+- [x] Red dotted highlight on mismatched edges during play (inset 10%, half-width)
 - [x] Backtracking puzzle generator — every daily puzzle is guaranteed solvable
-- [x] Win condition: all slots filled AND all adjacency constraints satisfied (checks on both drop and rotate)
+- [x] Win condition: all slots filled AND all adjacency constraints AND all extra constraints satisfied
 - [x] Random board shape per day — `BOARD_SHAPES_FOR_COUNT` holds multiple options per piece count,
   selected by the daily RNG (e.g. 2×3, 3×2, or 1×6 for 6-piece easy puzzles)
 - [x] How-to-play card on home page (between nav and piece grid)
@@ -128,16 +156,16 @@ randomly via the daily RNG so the board shape varies each day.
 - [x] Hidden solve timer — starts on page load, stops on first valid solve
 - [x] Solve time displayed on solved panel ("Solved in 3m 42s") and included in share text
 - [x] Solve time persisted in localStorage — shown correctly when revisiting a completed puzzle
-- [x] `DEV_SKIP_ADJACENCY` flag in puzzle.ts — set to `true` to skip adjacency checks for UI 
-- [x] Add a pause to timer if page/puzzle is not active
-- [x] Add a daily streak count
+- [x] `DEV_SKIP_ADJACENCY` flag in puzzle.ts — set to `true` to skip adjacency checks for UI
+- [x] Pause timer when page/puzzle is not active
+- [x] Daily streak count
+- [x] Extra board constraints (sum, all-different, all-same) — 1/2/4 per easy/medium/hard
+  - Generated from solution values so always satisfiable; seeded for daily reproducibility
+  - Coloured tint overlay on affected slots; badge at centroid turns green/red on fill
+  - Constraint rules documented in how-to-play card on home page with matching badge colours
 
 ## What's planned next
-- [ ] Add colourful constraints for some areas and/or corners like pips
-- [ ] **Curated shapes per difficulty** — currently shapes are random across all difficulties;
-  could weight or restrict options so easy always gets compact shapes and hard gets elongated ones
-- [ ] **Full rules / tutorial page** — a dedicated page or modal explaining the adjacency rule
-  with a worked example for first-time players
+- [ ] **Full rules / tutorial page** — a dedicated page or modal explaining the adjacency rule with a worked example for first-time players
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)

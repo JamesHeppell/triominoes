@@ -94,6 +94,33 @@ interface DragState {
 }
 let drag: DragState | null = null;
 
+// ─── Constraints ─────────────────────────────────────────────────────────────
+
+type ConstraintKind = 'sum' | 'all-different' | 'all-same';
+
+interface Constraint {
+  kind: ConstraintKind;
+  /** 1 slot for sum/all-same/all-different; 2 slots for paired sum. */
+  slots: number[];
+  /** Target sum for 'sum'; unused (0) for others. */
+  target: number;
+  /** Solid hex colour for badge and tint. */
+  color: string;
+}
+
+const CONSTRAINT_COLORS = ['#7c3aed', '#ea580c', '#16a34a', '#0891b2'];
+
+/** Extra board constraints generated from the solution; checked alongside adjacency. */
+let boardConstraints: Constraint[] = [];
+
+/** Convert '#rrggbb' + alpha to an rgba() string. */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 // ─── Adjacency ───────────────────────────────────────────────────────────────
 
 type AdjacencyType = 'right' | 'left' | 'below';
@@ -164,6 +191,86 @@ function computeAdjacentPairs(): AdjacentPair[] {
 }
 
 /**
+ * Derives extra constraints from the known solution values.
+ * Builds a pool of all valid candidates, shuffles it with the seeded RNG,
+ * then greedily picks non-overlapping constraints up to the difficulty count.
+ *
+ * Allowed kinds by difficulty:
+ *   easy   → sum (single slot only)
+ *   medium → sum (single or pair), all-different
+ *   hard   → all kinds
+ */
+function generateConstraints(solutionValues: PieceValues[], rng: () => number): Constraint[] {
+  const targetCount = currentDifficulty === 'easy' ? 1 : currentDifficulty === 'medium' ? 2 : 4;
+  const n = boardShape.rows * boardShape.cols;
+
+  type CandKind = 'sum-single' | 'sum-pair' | 'all-different' | 'all-same';
+  interface Cand { kind: CandKind; slots: number[]; target: number }
+  const pool: Cand[] = [];
+
+  for (let s = 0; s < n; s++) {
+    const v = solutionValues[s];
+    pool.push({ kind: 'sum-single', slots: [s], target: v[0] + v[1] + v[2] });
+    if (v[0] !== v[1] && v[1] !== v[2] && v[0] !== v[2])
+      pool.push({ kind: 'all-different', slots: [s], target: 0 });
+    if (v[0] === v[1] && v[1] === v[2])
+      pool.push({ kind: 'all-same', slots: [s], target: 0 });
+  }
+  for (const { slotA, slotB } of boardAdjacentPairs) {
+    const vA = solutionValues[slotA], vB = solutionValues[slotB];
+    pool.push({ kind: 'sum-pair', slots: [slotA, slotB],
+      target: vA[0] + vA[1] + vA[2] + vB[0] + vB[1] + vB[2] });
+  }
+
+  // Filter to kinds allowed for this difficulty
+  const allowed: Set<CandKind> = currentDifficulty === 'easy'
+    ? new Set(['sum-single'])
+    : currentDifficulty === 'medium'
+    ? new Set(['sum-single', 'sum-pair', 'all-different'])
+    : new Set(['sum-single', 'sum-pair', 'all-different', 'all-same']);
+  const filtered = pool.filter(c => allowed.has(c.kind));
+
+  // Fisher-Yates shuffle
+  for (let i = filtered.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+  }
+
+  // Greedy pick: no shared slots
+  const chosen: Cand[] = [];
+  const usedSlots = new Set<number>();
+  for (const c of filtered) {
+    if (chosen.length >= targetCount) break;
+    if (c.slots.some(s => usedSlots.has(s))) continue;
+    chosen.push(c);
+    c.slots.forEach(s => usedSlots.add(s));
+  }
+
+  return chosen.map((c, i) => ({
+    kind: c.kind === 'sum-single' || c.kind === 'sum-pair' ? 'sum' : c.kind,
+    slots: c.slots,
+    target: c.target,
+    color: CONSTRAINT_COLORS[i],
+  }));
+}
+
+/** Returns true if the constraint is satisfied by current board state.
+ *  Always returns true when any constrained slot is still empty. */
+function constraintSatisfied(c: Constraint): boolean {
+  if (c.slots.some(s => boardOccupancy[s] === null)) return true;
+  if (c.kind === 'sum') {
+    const total = c.slots.reduce((sum, s) => {
+      const v = rotatedValues(pieces[boardOccupancy[s]!], pieceRotation[boardOccupancy[s]!]);
+      return sum + v[0] + v[1] + v[2];
+    }, 0);
+    return total === c.target;
+  }
+  const v = rotatedValues(pieces[boardOccupancy[c.slots[0]]!], pieceRotation[boardOccupancy[c.slots[0]]!]);
+  if (c.kind === 'all-different') return v[0] !== v[1] && v[1] !== v[2] && v[0] !== v[2];
+  /* all-same */                  return v[0] === v[1] && v[1] === v[2];
+}
+
+/**
  * Returns true if the two adjacent occupied slots have matching corner values
  * at their shared edge.  Returns true (no violation) when either slot is empty.
  *
@@ -185,11 +292,12 @@ function adjacencyMatches(slotA: number, slotB: number, type: AdjacencyType): bo
   /* below */           return vA[1] === vB[2] && vA[2] === vB[1];
 }
 
-/** True only when every slot is filled AND every shared edge has matching values. */
+/** True only when every slot is filled, every shared edge matches, and all extra constraints pass. */
 function isPuzzleSolved(): boolean {
   if (!boardOccupancy.length || !boardOccupancy.every(p => p !== null)) return false;
   if (DEV_SKIP_ADJACENCY) return true;
-  return boardAdjacentPairs.every(({ slotA, slotB, type }) => adjacencyMatches(slotA, slotB, type));
+  if (!boardAdjacentPairs.every(({ slotA, slotB, type }) => adjacencyMatches(slotA, slotB, type))) return false;
+  return boardConstraints.every(c => constraintSatisfied(c));
 }
 
 // ─── Rotation helpers ────────────────────────────────────────────────────────
@@ -225,7 +333,7 @@ function rotatedValues(piece: PieceValues, rotation: number): PieceValues {
  *   ▽ slot: left ▲ via 'right' rule → nb[0]=my[1], nb[1]=my[0]
  *           above ▲ via 'below' rule → nb[1]=my[2], nb[2]=my[1]
  */
-function generateSolution(rng: () => number): PieceValues[] {
+function generateSolution(rng: () => number): { pieces: PieceValues[]; solutionValues: PieceValues[] } {
   const { rows, cols } = boardShape;
   const n = rows * cols;
 
@@ -296,8 +404,12 @@ function generateSolution(rng: () => number): PieceValues[] {
       const j = Math.floor(rng() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    return arr.slice(0, n);
+    const fallback = arr.slice(0, n);
+    return { pieces: fallback, solutionValues: fallback };
   }
+
+  // Capture solution values before shuffling tray order
+  const solutionValues = (genPieces as PieceValues[]).map((p, i) => rotatedValues(p, genRots[i]));
 
   // Shuffle tray order so the fill sequence doesn't reveal which piece goes where
   const result = genPieces as PieceValues[];
@@ -305,7 +417,7 @@ function generateSolution(rng: () => number): PieceValues[] {
     const j = Math.floor(rng() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
   }
-  return result;
+  return { pieces: result, solutionValues };
 }
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -419,6 +531,48 @@ function render(ctx: CanvasRenderingContext2D): void {
     } else {
       drawEmptySlot(ctx, cx, cy, R, up);
     }
+  }
+
+  // ── Constraint tints (semi-transparent colour overlay on constrained slots) ─
+  for (const c of boardConstraints) {
+    ctx.save();
+    ctx.fillStyle = hexToRgba(c.color, 0.28);
+    for (const s of c.slots) {
+      const { cx, cy, up } = boardSlotPos[s];
+      const verts = triVertices(cx, cy, R, up);
+      ctx.beginPath();
+      ctx.moveTo(verts[0][0], verts[0][1]);
+      ctx.lineTo(verts[1][0], verts[1][1]);
+      ctx.lineTo(verts[2][0], verts[2][1]);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ── Constraint badges (circle + label at centroid of affected slots) ───────
+  for (const c of boardConstraints) {
+    const bx = c.slots.reduce((sum, s) => sum + boardSlotPos[s].cx, 0) / c.slots.length;
+    const by = c.slots.reduce((sum, s) => sum + boardSlotPos[s].cy, 0) / c.slots.length;
+    const allFilled = c.slots.every(s => boardOccupancy[s] !== null);
+    const satisfied = allFilled && constraintSatisfied(c);
+    const badgeR = Math.max(8, Math.round(R * 0.22));
+    const label = c.kind === 'sum' ? String(c.target) : c.kind === 'all-different' ? '≠' : '≡';
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+    ctx.fillStyle = allFilled ? (satisfied ? '#22c55e' : '#ef4444') : c.color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.max(7, Math.round(R * 0.18))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, bx, by);
+    ctx.restore();
   }
 
   // ── Mismatch edge highlights ─────────────────────────────────────────────
@@ -791,9 +945,11 @@ function init(): void {
   const shapes = BOARD_SHAPES_FOR_COUNT[count];
   boardShape         = shapes[Math.floor(rng() * shapes.length)];
   boardAdjacentPairs = computeAdjacentPairs();
-  pieces             = generateSolution(rng);
+  const { pieces: solvedPieces, solutionValues } = generateSolution(rng);
+  pieces             = solvedPieces;
   pieceRotation      = Array(pieces.length).fill(0);
   boardOccupancy     = Array(boardShape.rows * boardShape.cols).fill(null);
+  boardConstraints   = generateConstraints(solutionValues, rng);
 
   // Restore saved board state if it exists and sizes match
   const savedState = loadPuzzleState(currentDateKey, difficulty);

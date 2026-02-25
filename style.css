@@ -290,6 +290,29 @@ h1 {
   color: #e0e0e0;
 }
 
+.how-to-play .constraint-example {
+  padding-left: 2em;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+}
+
+.constraint-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.35em;
+  height: 1.35em;
+  border-radius: 50%;
+  background: var(--badge-color);
+  border: 1.5px solid rgba(255, 255, 255, 0.65);
+  font-size: 0.78em;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1;
+}
+
 /* ── Main page content ────────────────────────────────────────────────────── */
 
 main {
