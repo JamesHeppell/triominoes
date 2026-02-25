@@ -74,6 +74,50 @@ h1 {
   color: #e94560;
 }
 
+/* ── Streak badge (home page) ─────────────────────────────────────────────── */
+
+.streak-badge {
+  position: fixed;
+  top: 0.65rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(22, 33, 62, 0.95);
+  border: 1px solid #2a3a5c;
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+  z-index: 50;
+}
+
+.streak-badge--done {
+  border-color: #e94560;
+}
+
+.streak-count {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #5577aa;
+}
+
+.streak-badge--done .streak-count {
+  color: #f9c74f;
+}
+
+.streak-label {
+  font-size: 0.55rem;
+  color: #5577aa;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Shift badge below the dev banner when in dev mode */
+.dev-mode .streak-badge {
+  top: 1.8rem;
+}
+
 .dev-banner {
   position: fixed;
   top: 0;
@@ -331,11 +375,38 @@ main {
 /* ── Puzzle page layout ───────────────────────────────────────────────────── */
 
 .puzzle-main {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
   width: 100%;
+}
+
+.ready-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: rgba(22, 33, 62, 0.93);
+  border-radius: 4px;
+  z-index: 10;
+  animation: fadeIn 0.2s ease;
+}
+
+.ready-overlay h2 {
+  font-size: clamp(1.8rem, 7vw, 2.5rem);
+  color: #f9c74f;
+  letter-spacing: 0.1em;
+}
+
+.ready-overlay .ready-elapsed {
+  color: #a0a0b0;
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
 }
 
 /* ── Solved panel ─────────────────────────────────────────────────────────── */

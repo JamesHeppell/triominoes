@@ -128,13 +128,14 @@ randomly via the daily RNG so the board shape varies each day.
 - [x] Hidden solve timer — starts on page load, stops on first valid solve
 - [x] Solve time displayed on solved panel ("Solved in 3m 42s") and included in share text
 - [x] Solve time persisted in localStorage — shown correctly when revisiting a completed puzzle
-- [x] `DEV_SKIP_ADJACENCY` flag in puzzle.ts — set to `true` to skip adjacency checks for UI testing
+- [x] `DEV_SKIP_ADJACENCY` flag in puzzle.ts — set to `true` to skip adjacency checks for UI 
+- [x] Add a pause to timer if page/puzzle is not active
+- [x] Add a daily streak count
 
 ## What's planned next
 - [ ] Add a premium member feature which allows the reset of the daily (to generate more)
 - [ ] Remove the dev reset button once premium feature is added
-- [ ] Add a daily streak count
-- [ ] Add a puse to timer if page is not active - and popup to continue?
+- [ ] Swap pieces if position occupied
 - [ ] Add colourful constraints for some areas and/or corners like pips
 - [ ] **Curated shapes per difficulty** — currently shapes are random across all difficulties;
   could weight or restrict options so easy always gets compact shapes and hard gets elongated ones

@@ -85,7 +85,7 @@
   }
 
   // src/daily.ts
-  var DEV_MODE = true;
+  var DEV_MODE = false;
   function getUtcDateKey() {
     const now = /* @__PURE__ */ new Date();
     const y = now.getUTCFullYear();
@@ -122,10 +122,53 @@
     const val = loadRecord()[dateKey]?.[difficulty];
     return val === true || typeof val === "number";
   }
+  var STREAK_KEY = "triominoes-streak-v1";
+  function loadStreakData() {
+    try {
+      return JSON.parse(localStorage.getItem(STREAK_KEY) ?? "null") ?? { streak: 0, lastDate: "" };
+    } catch {
+      return { streak: 0, lastDate: "" };
+    }
+  }
+  function getStreakData() {
+    const { streak, lastDate } = loadStreakData();
+    return { streak, completedToday: lastDate === getUtcDateKey() };
+  }
+  function resetStreak() {
+    localStorage.removeItem(STREAK_KEY);
+  }
   function resetDailyProgress(dateKey) {
     const record = loadRecord();
     delete record[dateKey];
     saveRecord(record);
+    resetTimerProgress(dateKey);
+    resetStateProgress(dateKey);
+  }
+  var TIMER_KEY = "triominoes-timer-v1";
+  function loadTimerRecord() {
+    try {
+      return JSON.parse(localStorage.getItem(TIMER_KEY) ?? "{}");
+    } catch {
+      return {};
+    }
+  }
+  function resetTimerProgress(dateKey) {
+    const record = loadTimerRecord();
+    delete record[dateKey];
+    localStorage.setItem(TIMER_KEY, JSON.stringify(record));
+  }
+  var STATE_KEY = "triominoes-state-v1";
+  function loadStateRecord() {
+    try {
+      return JSON.parse(localStorage.getItem(STATE_KEY) ?? "{}");
+    } catch {
+      return {};
+    }
+  }
+  function resetStateProgress(dateKey) {
+    const record = loadStateRecord();
+    delete record[dateKey];
+    localStorage.setItem(STATE_KEY, JSON.stringify(record));
   }
 
   // src/main.ts
@@ -197,7 +240,21 @@
     render(canvas, ctx, status);
     updateButtonStates();
     startCountdown();
+    const { streak, completedToday } = getStreakData();
+    if (streak > 0) {
+      const badge = document.createElement("div");
+      badge.className = "streak-badge" + (completedToday ? " streak-badge--done" : "");
+      const countEl = document.createElement("span");
+      countEl.className = "streak-count";
+      countEl.textContent = String(streak);
+      const labelEl = document.createElement("span");
+      labelEl.className = "streak-label";
+      labelEl.textContent = "day streak";
+      badge.append(countEl, labelEl);
+      document.body.appendChild(badge);
+    }
     if (DEV_MODE) {
+      document.body.classList.add("dev-mode");
       const banner = document.createElement("div");
       banner.className = "dev-banner";
       banner.textContent = "DEV MODE";
@@ -207,6 +264,7 @@
       btn.className = "btn-dev-reset";
       btn.addEventListener("click", () => {
         resetDailyProgress(getUtcDateKey());
+        resetStreak();
         incrementDevOffset();
         window.location.reload();
       });

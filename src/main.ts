@@ -1,7 +1,7 @@
 import { ALL_PIECES } from "./pieces";
 import { drawPiece } from "./draw";
 import { computeGridLayout } from "./layout";
-import { Difficulty, DEV_MODE, getUtcDateKey, isDailyComplete, msUntilUtcMidnight, resetDailyProgress, incrementDevOffset } from "./daily";
+import { Difficulty, DEV_MODE, getUtcDateKey, isDailyComplete, msUntilUtcMidnight, resetDailyProgress, incrementDevOffset, getStreakData, resetStreak } from "./daily";
 
 function render(
   canvas: HTMLCanvasElement,
@@ -89,7 +89,22 @@ function init(): void {
   updateButtonStates();
   startCountdown();
 
+  const { streak, completedToday } = getStreakData();
+  if (streak > 0) {
+    const badge = document.createElement("div");
+    badge.className = "streak-badge" + (completedToday ? " streak-badge--done" : "");
+    const countEl = document.createElement("span");
+    countEl.className = "streak-count";
+    countEl.textContent = String(streak);
+    const labelEl = document.createElement("span");
+    labelEl.className = "streak-label";
+    labelEl.textContent = "day streak";
+    badge.append(countEl, labelEl);
+    document.body.appendChild(badge);
+  }
+
   if (DEV_MODE) {
+    document.body.classList.add("dev-mode");
     const banner = document.createElement("div");
     banner.className = "dev-banner";
     banner.textContent = "DEV MODE";
@@ -100,6 +115,7 @@ function init(): void {
     btn.className = "btn-dev-reset";
     btn.addEventListener("click", () => {
       resetDailyProgress(getUtcDateKey());
+      resetStreak();
       incrementDevOffset();
       window.location.reload();
     });

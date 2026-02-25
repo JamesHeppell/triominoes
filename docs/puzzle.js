@@ -93,7 +93,7 @@
   }
 
   // src/daily.ts
-  var DEV_MODE = true;
+  var DEV_MODE = false;
   function getUtcDateKey() {
     const now = /* @__PURE__ */ new Date();
     const y = now.getUTCFullYear();
@@ -138,12 +138,81 @@
     const val = loadRecord()[dateKey]?.[difficulty];
     return typeof val === "number" ? val : null;
   }
+  var STREAK_KEY = "triominoes-streak-v1";
+  function loadStreakData() {
+    try {
+      return JSON.parse(localStorage.getItem(STREAK_KEY) ?? "null") ?? { streak: 0, lastDate: "" };
+    } catch {
+      return { streak: 0, lastDate: "" };
+    }
+  }
+  function updateStreak(dateKey) {
+    const { streak, lastDate } = loadStreakData();
+    if (lastDate === dateKey)
+      return;
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const prev = new Date(Date.UTC(y, m - 1, d - 1));
+    const yesterdayKey = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, "0")}-${String(prev.getUTCDate()).padStart(2, "0")}`;
+    const newStreak = lastDate === yesterdayKey ? streak + 1 : 1;
+    localStorage.setItem(STREAK_KEY, JSON.stringify({ streak: newStreak, lastDate: dateKey }));
+  }
   function markDailyComplete(dateKey, difficulty, solveTimeMs2) {
     const record = loadRecord();
     if (!record[dateKey])
       record[dateKey] = {};
     record[dateKey][difficulty] = solveTimeMs2 !== void 0 ? solveTimeMs2 : true;
     saveRecord(record);
+    updateStreak(dateKey);
+  }
+  var TIMER_KEY = "triominoes-timer-v1";
+  function loadTimerRecord() {
+    try {
+      return JSON.parse(localStorage.getItem(TIMER_KEY) ?? "{}");
+    } catch {
+      return {};
+    }
+  }
+  function getStoredElapsed(dateKey, difficulty) {
+    return loadTimerRecord()[dateKey]?.[difficulty] ?? 0;
+  }
+  function saveStoredElapsed(dateKey, difficulty, elapsed) {
+    const record = loadTimerRecord();
+    if (!record[dateKey])
+      record[dateKey] = {};
+    record[dateKey][difficulty] = elapsed;
+    localStorage.setItem(TIMER_KEY, JSON.stringify(record));
+  }
+  function clearStoredElapsed(dateKey, difficulty) {
+    const record = loadTimerRecord();
+    if (record[dateKey]) {
+      delete record[dateKey][difficulty];
+      localStorage.setItem(TIMER_KEY, JSON.stringify(record));
+    }
+  }
+  var STATE_KEY = "triominoes-state-v1";
+  function loadStateRecord() {
+    try {
+      return JSON.parse(localStorage.getItem(STATE_KEY) ?? "{}");
+    } catch {
+      return {};
+    }
+  }
+  function loadPuzzleState(dateKey, difficulty) {
+    return loadStateRecord()[dateKey]?.[difficulty] ?? null;
+  }
+  function savePuzzleState(dateKey, difficulty, occupancy, rotations) {
+    const record = loadStateRecord();
+    if (!record[dateKey])
+      record[dateKey] = {};
+    record[dateKey][difficulty] = { occupancy: [...occupancy], rotations: [...rotations] };
+    localStorage.setItem(STATE_KEY, JSON.stringify(record));
+  }
+  function clearPuzzleState(dateKey, difficulty) {
+    const record = loadStateRecord();
+    if (record[dateKey]) {
+      delete record[dateKey][difficulty];
+      localStorage.setItem(STATE_KEY, JSON.stringify(record));
+    }
   }
 
   // src/puzzle.ts
@@ -172,7 +241,8 @@
   var currentDateKey = "";
   var currentDifficulty = "easy";
   var solvedMarked = false;
-  var startTime = 0;
+  var timerElapsed = 0;
+  var timerActiveStart = null;
   var solveTimeMs = null;
   var R = 30;
   var canvasW = 400;
@@ -589,6 +659,22 @@
     if (timeEl)
       timeEl.textContent = solveTimeMs !== null ? `Solved in ${formatSolveTime(solveTimeMs)}` : "";
   }
+  function getElapsed() {
+    return timerElapsed + (timerActiveStart !== null ? Date.now() - timerActiveStart : 0);
+  }
+  function pauseTimer() {
+    if (timerActiveStart === null)
+      return;
+    timerElapsed += Date.now() - timerActiveStart;
+    timerActiveStart = null;
+    if (!solvedMarked)
+      saveStoredElapsed(currentDateKey, currentDifficulty, timerElapsed);
+  }
+  function resumeTimer() {
+    if (timerActiveStart !== null || solvedMarked)
+      return;
+    timerActiveStart = Date.now();
+  }
   function formatSolveTime(ms) {
     const totalSecs = Math.floor(ms / 1e3);
     const mins = Math.floor(totalSecs / 60);
@@ -597,12 +683,39 @@
       return `${secs}s`;
     return `${mins}m ${secs}s`;
   }
+  function showReadyOverlay() {
+    const main = document.querySelector(".puzzle-main");
+    if (!main) {
+      resumeTimer();
+      return;
+    }
+    const overlay = document.createElement("div");
+    overlay.className = "ready-overlay";
+    const heading = document.createElement("h2");
+    heading.textContent = "Ready?";
+    const elapsed = document.createElement("p");
+    elapsed.className = "ready-elapsed";
+    elapsed.textContent = `${formatSolveTime(timerElapsed)} played so far`;
+    const btn = document.createElement("button");
+    btn.textContent = "Continue";
+    btn.className = "btn btn-easy";
+    btn.addEventListener("click", () => {
+      overlay.remove();
+      resumeTimer();
+    });
+    overlay.append(heading, elapsed, btn);
+    main.appendChild(overlay);
+  }
   function checkCompletion() {
     if (solvedMarked)
       return;
+    savePuzzleState(currentDateKey, currentDifficulty, boardOccupancy, pieceRotation);
     if (isPuzzleSolved()) {
       solvedMarked = true;
-      solveTimeMs = Date.now() - startTime;
+      solveTimeMs = getElapsed();
+      timerActiveStart = null;
+      clearStoredElapsed(currentDateKey, currentDifficulty);
+      clearPuzzleState(currentDateKey, currentDifficulty);
       markDailyComplete(currentDateKey, currentDifficulty, solveTimeMs);
     }
   }
@@ -632,7 +745,8 @@
     currentDifficulty = difficulty;
     solvedMarked = false;
     solveTimeMs = null;
-    startTime = Date.now();
+    timerElapsed = getStoredElapsed(currentDateKey, difficulty);
+    timerActiveStart = Date.now();
     const rng = seededRng(dailySeed(currentDateKey, difficulty));
     const [min, max] = PIECE_COUNT_RANGE[difficulty];
     const count = min + Math.floor(rng() * (max - min + 1));
@@ -642,6 +756,11 @@
     pieces = generateSolution(rng);
     pieceRotation = Array(pieces.length).fill(0);
     boardOccupancy = Array(boardShape.rows * boardShape.cols).fill(null);
+    const savedState = loadPuzzleState(currentDateKey, difficulty);
+    if (savedState && savedState.occupancy.length === boardOccupancy.length && savedState.rotations.length === pieceRotation.length) {
+      boardOccupancy = savedState.occupancy;
+      pieceRotation = savedState.rotations;
+    }
     const redraw = () => {
       const canvasOffsetY = canvas.getBoundingClientRect().top + window.scrollY;
       const availH = Math.max(150, window.innerHeight - canvasOffsetY - 16);
@@ -683,7 +802,23 @@ ${homeUrl}`);
           pieceRotation[i] = 3;
       }
       render(ctx);
+    } else if (timerElapsed >= 1e4) {
+      pauseTimer();
+      showReadyOverlay();
+    } else {
     }
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        pauseTimer();
+      } else {
+        resumeTimer();
+      }
+    });
+    window.addEventListener("pagehide", () => {
+      pauseTimer();
+      if (!solvedMarked)
+        savePuzzleState(currentDateKey, currentDifficulty, boardOccupancy, pieceRotation);
+    });
     let lastWidth = window.innerWidth;
     let resizeTimer;
     window.addEventListener("resize", () => {

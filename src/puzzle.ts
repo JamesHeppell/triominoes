@@ -10,6 +10,12 @@ import {
   markDailyComplete,
   isDailyComplete,
   getDailySolveTime,
+  getStoredElapsed,
+  saveStoredElapsed,
+  clearStoredElapsed,
+  loadPuzzleState,
+  savePuzzleState,
+  clearPuzzleState,
 } from "./daily";
 
 const PIECE_COUNT_RANGE: Record<Difficulty, [number, number]> = {
@@ -60,8 +66,10 @@ let currentDifficulty: Difficulty = "easy";
 /** Prevents marking completion more than once per session. */
 let solvedMarked = false;
 
-/** epoch ms when the puzzle was loaded; used to compute solve time. */
-let startTime = 0;
+/** Accumulated ms from previous sessions (loaded from localStorage on init). */
+let timerElapsed = 0;
+/** epoch ms of the start of the current active session; null when paused. */
+let timerActiveStart: number | null = null;
 /** How long the player took to solve (ms), or null if not yet solved / pre-solved. */
 let solveTimeMs: number | null = null;
 
@@ -646,6 +654,22 @@ function updateSolvedPanel(): void {
   if (timeEl) timeEl.textContent = solveTimeMs !== null ? `Solved in ${formatSolveTime(solveTimeMs)}` : "";
 }
 
+function getElapsed(): number {
+  return timerElapsed + (timerActiveStart !== null ? Date.now() - timerActiveStart : 0);
+}
+
+function pauseTimer(): void {
+  if (timerActiveStart === null) return;
+  timerElapsed += Date.now() - timerActiveStart;
+  timerActiveStart = null;
+  if (!solvedMarked) saveStoredElapsed(currentDateKey, currentDifficulty, timerElapsed);
+}
+
+function resumeTimer(): void {
+  if (timerActiveStart !== null || solvedMarked) return;
+  timerActiveStart = Date.now();
+}
+
 function formatSolveTime(ms: number): string {
   const totalSecs = Math.floor(ms / 1000);
   const mins = Math.floor(totalSecs / 60);
@@ -654,11 +678,41 @@ function formatSolveTime(ms: number): string {
   return `${mins}m ${secs}s`;
 }
 
+function showReadyOverlay(): void {
+  const main = document.querySelector(".puzzle-main") as HTMLElement | null;
+  if (!main) { resumeTimer(); return; }
+
+  const overlay = document.createElement("div");
+  overlay.className = "ready-overlay";
+
+  const heading = document.createElement("h2");
+  heading.textContent = "Ready?";
+
+  const elapsed = document.createElement("p");
+  elapsed.className = "ready-elapsed";
+  elapsed.textContent = `${formatSolveTime(timerElapsed)} played so far`;
+
+  const btn = document.createElement("button");
+  btn.textContent = "Continue";
+  btn.className = "btn btn-easy";
+  btn.addEventListener("click", () => {
+    overlay.remove();
+    resumeTimer();
+  });
+
+  overlay.append(heading, elapsed, btn);
+  main.appendChild(overlay);
+}
+
 function checkCompletion(): void {
   if (solvedMarked) return;
+  savePuzzleState(currentDateKey, currentDifficulty, boardOccupancy, pieceRotation);
   if (isPuzzleSolved()) {
     solvedMarked = true;
-    solveTimeMs = Date.now() - startTime;
+    solveTimeMs = getElapsed();
+    timerActiveStart = null;
+    clearStoredElapsed(currentDateKey, currentDifficulty);
+    clearPuzzleState(currentDateKey, currentDifficulty);
     markDailyComplete(currentDateKey, currentDifficulty, solveTimeMs);
   }
 }
@@ -693,7 +747,8 @@ function init(): void {
   currentDifficulty = difficulty;
   solvedMarked      = false;
   solveTimeMs       = null;
-  startTime         = Date.now();
+  timerElapsed      = getStoredElapsed(currentDateKey, difficulty);
+  timerActiveStart  = Date.now();
   const rng      = seededRng(dailySeed(currentDateKey, difficulty));
   const [min, max] = PIECE_COUNT_RANGE[difficulty];
   const count    = min + Math.floor(rng() * (max - min + 1));
@@ -703,6 +758,15 @@ function init(): void {
   pieces             = generateSolution(rng);
   pieceRotation      = Array(pieces.length).fill(0);
   boardOccupancy     = Array(boardShape.rows * boardShape.cols).fill(null);
+
+  // Restore saved board state if it exists and sizes match
+  const savedState = loadPuzzleState(currentDateKey, difficulty);
+  if (savedState &&
+      savedState.occupancy.length === boardOccupancy.length &&
+      savedState.rotations.length === pieceRotation.length) {
+    boardOccupancy = savedState.occupancy;
+    pieceRotation  = savedState.rotations;
+  }
 
   const redraw = () => {
     const canvasOffsetY = canvas.getBoundingClientRect().top + window.scrollY;
@@ -746,7 +810,26 @@ function init(): void {
       if (!boardSlotPos[i].up) pieceRotation[i] = 3;
     }
     render(ctx);
+  } else if (timerElapsed >= 10_000) {
+    // Only show overlay if at least 10s played — avoids prompt for very brief sessions
+    pauseTimer();
+    showReadyOverlay();
+  } else {
+    // Less than 10s played — resume silently (timer already running)
   }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      pauseTimer();
+    } else {
+      resumeTimer();
+    }
+  });
+
+  window.addEventListener("pagehide", () => {
+    pauseTimer();
+    if (!solvedMarked) savePuzzleState(currentDateKey, currentDifficulty, boardOccupancy, pieceRotation);
+  });
 
   let lastWidth = window.innerWidth;
   let resizeTimer: ReturnType<typeof setTimeout>;
