@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Triominoes puzzle solver",
   "scripts": {
-    "build": "esbuild src/main.ts src/puzzle.ts --bundle --outdir=docs && cp index.html puzzle.html style.css docs/",
+    "build": "esbuild src/main.ts src/puzzle.ts --bundle --outdir=docs && cp index.html puzzle.html rules.html style.css docs/",
     "dev": "esbuild src/main.ts src/puzzle.ts --bundle --outdir=docs --watch"
   },
   "devDependencies": {

@@ -15,7 +15,8 @@ Targeted at GitHub Pages (static files only — no server, no build step needed 
 ```
 index.html          Main page — shows all 56 pieces + difficulty nav buttons
 puzzle.html         Puzzle page — single canvas with board + tray
-style.css           Shared CSS (both pages)
+rules.html          Static rules/tutorial page — SVG diagrams, no JS
+style.css           Shared CSS (all pages)
 src/
   pieces.ts         Piece data model — PieceValues type, ALL_PIECES const (56 pieces)
   draw.ts           Canvas drawing primitives (triVertices, drawPiece, drawEmptySlot, drawStarSlot)
@@ -163,9 +164,16 @@ randomly via the daily RNG so the board shape varies each day.
   - Generated from solution values so always satisfiable; seeded for daily reproducibility
   - Coloured tint overlay on affected slots; badge at centroid turns green/red on fill
   - Constraint rules documented in how-to-play card on home page with matching badge colours
+- [x] Full rules/tutorial page (`rules.html`) — static page linked from home page
+  - Section 1: tile anatomy SVG with corner labels
+  - Section 2: adjacency rule with matching (green) and mismatching (red dotted) SVG examples
+  - Section 3: all 6 rotations of a sample piece in a 3×2 CSS grid
+  - Section 4: extra constraint types with tinted SVG examples and explanatory text
+  - "← Back" link returns to home; "Play today's puzzle" CTA at bottom
 
 ## What's planned next
-- [ ] **Full rules / tutorial page** — a dedicated page or modal explaining the adjacency rule with a worked example for first-time players
+- [ ] **Curated shapes per difficulty** — currently shapes are random across all difficulties;
+  could weight or restrict options so easy always gets compact shapes and hard gets elongated ones
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)

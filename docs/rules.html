@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Triominoes – Rules</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="puzzle-header">
+    <a href="index.html" class="back-link">← Back</a>
+    <h1>Rules</h1>
+    <span class="header-spacer">
+      <svg class="logo-tri logo-tri--header-right" viewBox="0 0 50 38" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polygon points="25,4 42,34 8,34" fill="#FFF8EE" stroke="#e94560" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="25" y1="4"  x2="25"   y2="34" stroke="#5577aa" stroke-width="1.5" stroke-dasharray="2 3" stroke-linecap="round"/>
+        <line x1="42" y1="34" x2="16.5" y2="19" stroke="#5577aa" stroke-width="1.5" stroke-dasharray="2 3" stroke-linecap="round"/>
+        <line x1="8"  y1="34" x2="33.5" y2="19" stroke="#5577aa" stroke-width="1.5" stroke-dasharray="2 3" stroke-linecap="round"/>
+      </svg>
+    </span>
+  </header>
+
+  <main class="rules-main">
+
+    <!-- ── Section 1: The Tile ─────────────────────────────────────────────── -->
+    <section class="how-to-play">
+      <h2>The Tile</h2>
+      <p class="rules-intro">Each tile is an equilateral triangle with a number (0–5) at each corner. Drag tiles onto the board and tap to rotate.</p>
+      <figure class="rules-example rules-example--center">
+        <!-- ▲ piece [1,3,4]: centroid (50,43), R=38
+             v[0] top=(50,5)  v[1] br=(83,62)  v[2] bl=(17,62)
+             labels at 42% from centroid toward each vertex:
+               top=(50,27)  br=(64,51)  bl=(36,51)                  -->
+        <svg viewBox="0 0 100 72" class="rules-svg rules-svg--sm" aria-label="A single triomino tile showing values 1, 3, 4 at the three corners">
+          <polygon points="50,5 83,62 17,62" fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+          <text x="50" y="27"  text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">1</text>
+          <text x="64" y="51"  text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">3</text>
+          <text x="36" y="51"  text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">4</text>
+        </svg>
+        <figcaption class="rules-caption">One tile — three corners, each 0–5</figcaption>
+      </figure>
+    </section>
+
+    <!-- ── Section 2: Adjacency Rule ─────────────────────────────────────── -->
+    <section class="how-to-play">
+      <h2>The Adjacency Rule</h2>
+      <p class="rules-intro">Wherever two tiles share an edge, the values at <strong>both</strong> shared corners must match — like dominoes but with two numbers per edge.</p>
+      <div class="rules-example-pair">
+
+        <!-- Matching pair
+             ▲ (R=35, centroid 30,35): v[0]top=(30,0) v[1]br=(61,53) v[2]bl=(0,53)
+             ▽ (R=35, centroid 61,18): v[0]btm=(61,53) v[1]tl=(30,0) v[2]tr=(91,0)
+             Shared edge: (30,0)→(61,53)
+             ▲ values: top=3  br=2  bl=1
+             ▽ values: btm=2  tl=3  tr=5
+             Match: ▲top(3)=▽tl(3) ✓  ▲br(2)=▽btm(2) ✓
+             Labels at 42% from centroid to vertex:
+               ▲: top=(30,20) br=(43,42) bl=(17,42)
+               ▽: btm=(61,32) tl=(48,10) tr=(74,10)
+             Green edge line inset 10%: (33,5)→(58,48)                         -->
+        <figure class="rules-example">
+          <svg viewBox="-5 -8 102 70" class="rules-svg" aria-label="Two matching tiles sharing an edge with equal corner values">
+            <polygon points="30,0 61,53 0,53"  fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <polygon points="61,53 30,0 91,0"  fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <!-- Matching edge highlight -->
+            <line x1="33" y1="5" x2="58" y2="48" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- ▲ labels -->
+            <text x="30" y="20" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">3</text>
+            <text x="43" y="42" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+            <text x="17" y="42" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+            <!-- ▽ labels -->
+            <text x="61" y="32" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+            <text x="48" y="10" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">3</text>
+            <text x="74" y="10" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">5</text>
+          </svg>
+          <figcaption class="rules-caption rules-caption--good">✓ Shared corners match (3=3, 2=2)</figcaption>
+        </figure>
+
+        <!-- Mismatching pair
+             Same geometry. ▽ values: btm=4  tl=1  tr=5
+             Mismatch: ▲top(3)≠▽tl(1) ✗  ▲br(2)≠▽btm(4) ✗
+             Red dotted edge inset 10%: same (33,5)→(58,48)                     -->
+        <figure class="rules-example">
+          <svg viewBox="-5 -8 102 70" class="rules-svg" aria-label="Two mismatching tiles with a red dotted line on the shared edge">
+            <polygon points="30,0 61,53 0,53"  fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <polygon points="61,53 30,0 91,0"  fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <!-- Mismatch edge highlight -->
+            <line x1="33" y1="5" x2="58" y2="48" stroke="#ff4040" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/>
+            <!-- ▲ labels -->
+            <text x="30" y="20" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">3</text>
+            <text x="43" y="42" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+            <text x="17" y="42" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+            <!-- ▽ labels (mismatching) -->
+            <text x="61" y="32" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">4</text>
+            <text x="48" y="10" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+            <text x="74" y="10" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">5</text>
+          </svg>
+          <figcaption class="rules-caption rules-caption--bad">✗ Shared corners don't match (3≠1, 2≠4)</figcaption>
+        </figure>
+
+      </div>
+    </section>
+
+    <!-- ── Section 3: Rotations ───────────────────────────────────────────── -->
+    <section class="how-to-play">
+      <h2>Rotations</h2>
+      <p class="rules-intro">Tap any tile to cycle through 6 orientations. Three point up (▲) and three point down (▽) — the corner values shift with each tap.</p>
+
+      <!-- Piece [1,2,4] in all 6 rotations.
+           rotatedValues(piece, r): shift = r%3, returns [piece[shift], piece[(shift+1)%3], piece[(shift+2)%3]]
+           piece = [1,2,4]
+             rot 0 (▲): shift=0 → [1,2,4]   top=1 br=2 bl=4
+             rot 1 (▽): shift=1 → [2,4,1]   btm=2 tl=4 tr=1
+             rot 2 (▲): shift=2 → [4,1,2]   top=4 br=1 bl=2
+             rot 3 (▽): shift=0 → [1,2,4]   btm=1 tl=2 tr=4
+             rot 4 (▲): shift=1 → [2,4,1]   top=2 br=4 bl=1
+             rot 5 (▽): shift=2 → [4,1,2]   btm=4 tl=1 tr=2
+
+           R=28, centroid at (40,35) for ▲ and (40,33) for ▽, viewBox "0 0 80 68"
+           ▲ vertices: top=(40,7) br=(64,49) bl=(16,49)
+           ▲ labels at 42%: top=(40,23) br=(50,41) bl=(30,41)
+           ▽ vertices: btm=(40,61) tl=(16,19) tr=(64,19)
+           ▽ labels at 42%: btm=(40,45) tl=(30,27) tr=(50,27)           -->
+      <div class="rotation-grid">
+
+        <!-- Rot 0 ▲: top=1 br=2 bl=4 -->
+        <figure class="rules-example rules-example--center">
+          <svg viewBox="0 0 80 68" class="rules-svg rules-svg--rot" aria-label="Rotation 0: up triangle, top 1, bottom-right 2, bottom-left 4">
+            <polygon points="40,7 64,49 16,49" fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <text x="40" y="23" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+            <text x="50" y="41" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+            <text x="30" y="41" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">4</text>
+          </svg>
+          <figcaption class="rules-caption">Tap 0 ▲</figcaption>
+        </figure>
+
+        <!-- Rot 1 ▽: btm=2 tl=4 tr=1 -->
+        <figure class="rules-example rules-example--center">
+          <svg viewBox="0 0 80 68" class="rules-svg rules-svg--rot" aria-label="Rotation 1: down triangle, bottom 2, top-left 4, top-right 1">
+            <polygon points="40,61 16,19 64,19" fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <text x="40" y="45" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+            <text x="30" y="27" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">4</text>
+            <text x="50" y="27" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+          </svg>
+          <figcaption class="rules-caption">Tap 1 ▽</figcaption>
+        </figure>
+
+        <!-- Rot 2 ▲: top=4 br=1 bl=2 -->
+        <figure class="rules-example rules-example--center">
+          <svg viewBox="0 0 80 68" class="rules-svg rules-svg--rot" aria-label="Rotation 2: up triangle, top 4, bottom-right 1, bottom-left 2">
+            <polygon points="40,7 64,49 16,49" fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <text x="40" y="23" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">4</text>
+            <text x="50" y="41" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+            <text x="30" y="41" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+          </svg>
+          <figcaption class="rules-caption">Tap 2 ▲</figcaption>
+        </figure>
+
+        <!-- Rot 3 ▽: btm=1 tl=2 tr=4 -->
+        <figure class="rules-example rules-example--center">
+          <svg viewBox="0 0 80 68" class="rules-svg rules-svg--rot" aria-label="Rotation 3: down triangle, bottom 1, top-left 2, top-right 4">
+            <polygon points="40,61 16,19 64,19" fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <text x="40" y="45" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+            <text x="30" y="27" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+            <text x="50" y="27" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">4</text>
+          </svg>
+          <figcaption class="rules-caption">Tap 3 ▽</figcaption>
+        </figure>
+
+        <!-- Rot 4 ▲: top=2 br=4 bl=1 -->
+        <figure class="rules-example rules-example--center">
+          <svg viewBox="0 0 80 68" class="rules-svg rules-svg--rot" aria-label="Rotation 4: up triangle, top 2, bottom-right 4, bottom-left 1">
+            <polygon points="40,7 64,49 16,49" fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <text x="40" y="23" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+            <text x="50" y="41" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">4</text>
+            <text x="30" y="41" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+          </svg>
+          <figcaption class="rules-caption">Tap 4 ▲</figcaption>
+        </figure>
+
+        <!-- Rot 5 ▽: btm=4 tl=1 tr=2 -->
+        <figure class="rules-example rules-example--center">
+          <svg viewBox="0 0 80 68" class="rules-svg rules-svg--rot" aria-label="Rotation 5: down triangle, bottom 4, top-left 1, top-right 2">
+            <polygon points="40,61 16,19 64,19" fill="#FFF8EE" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+            <text x="40" y="45" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">4</text>
+            <text x="30" y="27" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">1</text>
+            <text x="50" y="27" text-anchor="middle" dominant-baseline="middle" font-size="10" font-family="monospace" font-weight="bold" fill="#111">2</text>
+          </svg>
+          <figcaption class="rules-caption">Tap 5 ▽</figcaption>
+        </figure>
+
+      </div>
+    </section>
+
+    <!-- ── Section 4: Extra Constraints ──────────────────────────────────── -->
+    <section class="how-to-play">
+      <h2>Extra Constraints</h2>
+      <p class="rules-intro">Tinted tiles carry an extra constraint shown by a coloured badge at the centre. The badge turns <strong style="color:#22c55e">green</strong> when satisfied and <strong style="color:#ef4444">red</strong> when violated.</p>
+
+      <ul class="rules-constraint-list">
+
+        <!-- Sum constraint — badge #7c3aed
+             ▲ piece [2,3,4]: centroid (50,43), R=38, vertices (50,5)(83,62)(17,62)
+             labels: top=(50,27) br=(64,51) bl=(36,51)
+             tint: same polygon at 28% alpha
+             badge: circle cx=50 cy=43 r=12                                     -->
+        <li class="rules-constraint-item">
+          <figure class="rules-example rules-example--center">
+            <svg viewBox="0 0 100 72" class="rules-svg rules-svg--sm" aria-label="Sum constraint: tile with values 2, 3, 4 and a purple badge showing 9">
+              <!-- Tint overlay -->
+              <polygon points="50,5 83,62 17,62" fill="rgba(124,58,237,0.28)" stroke="none"/>
+              <!-- Tile -->
+              <polygon points="50,5 83,62 17,62" fill="#FFF8EE" fill-opacity="0.72" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+              <!-- Labels -->
+              <text x="50" y="27" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">2</text>
+              <text x="64" y="51" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">3</text>
+              <text x="36" y="51" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">4</text>
+              <!-- Badge -->
+              <circle cx="50" cy="43" r="12" fill="#7c3aed" stroke="rgba(255,255,255,0.65)" stroke-width="1.5"/>
+              <text x="50" y="43" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="sans-serif" font-weight="bold" fill="#fff">9</text>
+            </svg>
+            <figcaption class="rules-caption">2 + 3 + 4 = 9</figcaption>
+          </figure>
+          <p class="rules-constraint-text">The corners of this tile must <strong>sum</strong> to the badge number. A badge between two tiles means both tiles' corners together must reach the target.</p>
+        </li>
+
+        <!-- All-different constraint — badge #ea580c
+             ▲ piece [1,3,5]: same geometry, labels top=1 br=3 bl=5              -->
+        <li class="rules-constraint-item">
+          <figure class="rules-example rules-example--center">
+            <svg viewBox="0 0 100 72" class="rules-svg rules-svg--sm" aria-label="All-different constraint: tile with values 1, 3, 5 and an orange badge showing ≠">
+              <polygon points="50,5 83,62 17,62" fill="rgba(234,88,12,0.28)" stroke="none"/>
+              <polygon points="50,5 83,62 17,62" fill="#FFF8EE" fill-opacity="0.72" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+              <text x="50" y="27" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">1</text>
+              <text x="64" y="51" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">3</text>
+              <text x="36" y="51" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">5</text>
+              <circle cx="50" cy="43" r="12" fill="#ea580c" stroke="rgba(255,255,255,0.65)" stroke-width="1.5"/>
+              <text x="50" y="43" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="sans-serif" font-weight="bold" fill="#fff">≠</text>
+            </svg>
+            <figcaption class="rules-caption">1, 3, 5 — all different</figcaption>
+          </figure>
+          <p class="rules-constraint-text">All three corner values must be <strong>different</strong> from each other.</p>
+        </li>
+
+        <!-- All-same constraint — badge #16a34a
+             ▲ piece [2,2,2]: labels top=2 br=2 bl=2                             -->
+        <li class="rules-constraint-item">
+          <figure class="rules-example rules-example--center">
+            <svg viewBox="0 0 100 72" class="rules-svg rules-svg--sm" aria-label="All-same constraint: tile with values 2, 2, 2 and a green badge showing ≡">
+              <polygon points="50,5 83,62 17,62" fill="rgba(22,163,74,0.28)" stroke="none"/>
+              <polygon points="50,5 83,62 17,62" fill="#FFF8EE" fill-opacity="0.72" stroke="#444" stroke-width="1.5" stroke-linejoin="round"/>
+              <text x="50" y="27" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">2</text>
+              <text x="64" y="51" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">2</text>
+              <text x="36" y="51" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="monospace" font-weight="bold" fill="#111">2</text>
+              <circle cx="50" cy="43" r="12" fill="#16a34a" stroke="rgba(255,255,255,0.65)" stroke-width="1.5"/>
+              <text x="50" y="43" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="sans-serif" font-weight="bold" fill="#fff">≡</text>
+            </svg>
+            <figcaption class="rules-caption">2, 2, 2 — all equal</figcaption>
+          </figure>
+          <p class="rules-constraint-text">All three corner values must be <strong>equal</strong>.</p>
+        </li>
+
+      </ul>
+    </section>
+
+    <a href="index.html" class="btn btn-easy rules-play-btn">Play today's puzzle</a>
+
+  </main>
+</body>
+</html>
