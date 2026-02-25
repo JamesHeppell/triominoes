@@ -198,6 +198,10 @@
     updateButtonStates();
     startCountdown();
     if (DEV_MODE) {
+      const banner = document.createElement("div");
+      banner.className = "dev-banner";
+      banner.textContent = "DEV MODE";
+      document.body.appendChild(banner);
       const btn = document.createElement("button");
       btn.textContent = "Reset";
       btn.className = "btn-dev-reset";

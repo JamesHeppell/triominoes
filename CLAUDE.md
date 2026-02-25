@@ -131,6 +131,11 @@ randomly via the daily RNG so the board shape varies each day.
 - [x] `DEV_SKIP_ADJACENCY` flag in puzzle.ts — set to `true` to skip adjacency checks for UI testing
 
 ## What's planned next
+- [ ] Add a premium member feature which allows the reset of the daily (to generate more)
+- [ ] Remove the dev reset button once premium feature is added
+- [ ] Add a daily streak count
+- [ ] Add a puse to timer if page is not active - and popup to continue?
+- [ ] Add colourful constraints for some areas and/or corners like pips
 - [ ] **Curated shapes per difficulty** — currently shapes are random across all difficulties;
   could weight or restrict options so easy always gets compact shapes and hard gets elongated ones
 - [ ] **Full rules / tutorial page** — a dedicated page or modal explaining the adjacency rule

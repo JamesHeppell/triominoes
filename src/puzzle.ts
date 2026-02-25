@@ -664,6 +664,13 @@ function checkCompletion(): void {
 }
 
 function init(): void {
+  if (DEV_MODE) {
+    const banner = document.createElement("div");
+    banner.className = "dev-banner";
+    banner.textContent = "DEV MODE";
+    document.body.appendChild(banner);
+  }
+
   const params = new URLSearchParams(window.location.search);
   const difficulty = (params.get("d") ?? "easy") as Difficulty;
 

@@ -607,6 +607,12 @@
     }
   }
   function init() {
+    if (DEV_MODE) {
+      const banner = document.createElement("div");
+      banner.className = "dev-banner";
+      banner.textContent = "DEV MODE";
+      document.body.appendChild(banner);
+    }
     const params = new URLSearchParams(window.location.search);
     const difficulty = params.get("d") ?? "easy";
     const titleEl = document.getElementById("puzzle-title");

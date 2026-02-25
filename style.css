@@ -74,6 +74,22 @@ h1 {
   color: #e94560;
 }
 
+.dev-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #e94560;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  text-align: center;
+  padding: 0.2rem 0;
+  pointer-events: none;
+}
+
 .btn-dev-reset {
   position: fixed;
   top: 0.65rem;
@@ -166,7 +182,7 @@ h1 {
   background: transparent;
   color: #a8c4e8;
   border: 1px solid #5577aa;
-  margin-top: 0.75rem;
+  margin-top: 1.75rem;
 }
 
 .btn-share:hover { background: rgba(85, 119, 170, 0.2); opacity: 1; }
@@ -326,7 +342,7 @@ main {
 
 #solved-panel {
   text-align: center;
-  padding: 0.25rem 0 0.5rem;
+  padding: 1rem 0 1rem;
   animation: fadeIn 0.4s ease;
 }
 
@@ -335,25 +351,25 @@ main {
   font-weight: bold;
   color: #f9c74f;
   letter-spacing: 0.08em;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .solve-time {
   font-size: 1rem;
   font-weight: bold;
   color: #f9c74f;
-  margin: 0.1rem 0 0.4rem;
+  margin: 0.25rem 0 0.75rem;
   min-height: 1.4em; /* reserve space even when empty */
 }
 
 #solved-panel .solved-sub {
   color: #a0a0b0;
   font-size: 0.9rem;
-  margin-bottom: 0;
+  margin-bottom: 0.25rem;
 }
 
 #solved-panel .difficulty-nav {
-  margin-top: 0.75rem;
+  margin-top: 1rem;
 }
 
 @keyframes fadeIn {
