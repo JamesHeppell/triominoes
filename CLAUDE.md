@@ -193,7 +193,7 @@ randomly via the daily RNG so the board shape varies each day.
 ## What's planned next
 Ordered by impact on new-user experience:
 - [ ] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the home screen and works offline; high value for a mobile-first daily game
-
+- [ ] support light and dark mode
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)

@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#e94560" />
   <title>Triominoes – Rules</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
 </head>
 <body>
   <header class="puzzle-header">
@@ -267,5 +270,6 @@
     <a href="index.html" class="btn btn-easy rules-play-btn">Play today's puzzle</a>
 
   </main>
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
 </body>
 </html>
