@@ -226,12 +226,12 @@
     4: [{ rows: 2, cols: 2 }, { rows: 1, cols: 4 }],
     5: [{ rows: 1, cols: 5 }],
     6: [{ rows: 2, cols: 3 }, { rows: 3, cols: 2 }, { rows: 1, cols: 6 }],
-    7: [{ rows: 1, cols: 7 }],
-    8: [{ rows: 2, cols: 4 }, { rows: 4, cols: 2 }, { rows: 1, cols: 8 }],
-    9: [{ rows: 3, cols: 3 }, { rows: 1, cols: 9 }],
-    10: [{ rows: 2, cols: 5 }, { rows: 1, cols: 10 }],
-    11: [{ rows: 1, cols: 11 }],
-    12: [{ rows: 3, cols: 4 }, { rows: 4, cols: 3 }, { rows: 2, cols: 6 }, { rows: 1, cols: 12 }]
+    7: [{ rows: 1, cols: 7 }, { rows: 2, cols: 4 }],
+    8: [{ rows: 2, cols: 4 }, { rows: 4, cols: 2 }, { rows: 3, cols: 3 }],
+    9: [{ rows: 3, cols: 3 }, { rows: 2, cols: 5 }],
+    10: [{ rows: 2, cols: 5 }, { rows: 5, cols: 2 }, { rows: 3, cols: 4 }, { rows: 4, cols: 3 }],
+    11: [{ rows: 3, cols: 4 }, { rows: 4, cols: 3 }, { rows: 2, cols: 6 }],
+    12: [{ rows: 3, cols: 4 }, { rows: 4, cols: 3 }, { rows: 2, cols: 6 }]
   };
   var pieces = [];
   var pieceRotation = [];
@@ -466,11 +466,13 @@
     const rFromWidth = Math.floor(
       (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2))
     );
+    const TRAY_CELL_W_RATIO = 68 / 30;
+    const TRAY_CELL_H_RATIO = 62 / 30;
     let bestR = 10;
     for (let r = rFromWidth; r >= 10; r--) {
       const boardH = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
-      const cellW = r * (84 / 30);
-      const cellH = r * (78 / 30);
+      const cellW = r * TRAY_CELL_W_RATIO;
+      const cellH = r * TRAY_CELL_H_RATIO;
       const tCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / cellW)));
       const tRows = Math.ceil(n / tCols);
       const totalH = boardH + DIVIDER_H + 2 * TRAY_PAD + tRows * cellH;
@@ -481,8 +483,8 @@
     }
     const bl = computeBoardLayout(rows, cols, bestR);
     R = bl.r;
-    const CELL_W = R * (84 / 30);
-    const CELL_H = R * (78 / 30);
+    const CELL_W = R * TRAY_CELL_W_RATIO;
+    const CELL_H = R * TRAY_CELL_H_RATIO;
     const trayCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / CELL_W)));
     const trayRows = Math.ceil(n / trayCols);
     const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H;
@@ -625,9 +627,15 @@
       updateSolvedPanel();
       ctx.fillStyle = "rgba(22, 33, 62, 0.78)";
       ctx.fillRect(0, 0, canvasW, boardSectionH);
-      const solvedSize = Math.max(28, Math.round(R * 1.3));
-      ctx.fillStyle = "#f9c74f";
+      let solvedSize = Math.max(28, Math.round(R * 1.3));
       ctx.font = `bold ${solvedSize}px sans-serif`;
+      const maxTextW = canvasW - 32;
+      const measuredW = ctx.measureText("SOLVED!").width;
+      if (measuredW > maxTextW) {
+        solvedSize = Math.floor(solvedSize * maxTextW / measuredW);
+        ctx.font = `bold ${solvedSize}px sans-serif`;
+      }
+      ctx.fillStyle = "#f9c74f";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("SOLVED!", canvasW / 2, boardSectionH / 2);
