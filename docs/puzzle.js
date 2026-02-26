@@ -207,13 +207,6 @@
     record[dateKey][difficulty] = { occupancy: [...occupancy], rotations: [...rotations] };
     localStorage.setItem(STATE_KEY, JSON.stringify(record));
   }
-  function clearPuzzleState(dateKey, difficulty) {
-    const record = loadStateRecord();
-    if (record[dateKey]) {
-      delete record[dateKey][difficulty];
-      localStorage.setItem(STATE_KEY, JSON.stringify(record));
-    }
-  }
 
   // src/puzzle.ts
   var PIECE_COUNT_RANGE = {
@@ -952,7 +945,6 @@
       solveTimeMs = getElapsed();
       timerActiveStart = null;
       clearStoredElapsed(currentDateKey, currentDifficulty);
-      clearPuzzleState(currentDateKey, currentDifficulty);
       markDailyComplete(currentDateKey, currentDifficulty, solveTimeMs);
     }
   }
@@ -1040,10 +1032,31 @@ ${homeUrl}`);
     if (isDailyComplete(currentDateKey, difficulty)) {
       solvedMarked = true;
       solveTimeMs = getDailySolveTime(currentDateKey, difficulty);
-      for (let i = 0; i < boardOccupancy.length; i++) {
-        boardOccupancy[i] = i;
-        if (!boardSlotPos[i].up)
-          pieceRotation[i] = 3;
+      const hasSavedState = savedState !== null && savedState.occupancy.length === boardOccupancy.length && savedState.rotations.length === pieceRotation.length;
+      if (!hasSavedState) {
+        const used = /* @__PURE__ */ new Set();
+        for (let s = 0; s < boardOccupancy.length; s++) {
+          const up = boardSlotPos[s].up;
+          const sv = solutionValues[s];
+          const validRots = up ? [0, 2, 4] : [1, 3, 5];
+          for (let pi = 0; pi < pieces.length; pi++) {
+            if (used.has(pi))
+              continue;
+            let placed = false;
+            for (const rot of validRots) {
+              const v = rotatedValues(pieces[pi], rot);
+              if (v[0] === sv[0] && v[1] === sv[1] && v[2] === sv[2]) {
+                boardOccupancy[s] = pi;
+                pieceRotation[pi] = rot;
+                used.add(pi);
+                placed = true;
+                break;
+              }
+            }
+            if (placed)
+              break;
+          }
+        }
       }
       render(ctx);
     } else {

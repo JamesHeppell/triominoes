@@ -15,7 +15,6 @@ import {
   clearStoredElapsed,
   loadPuzzleState,
   savePuzzleState,
-  clearPuzzleState,
 } from "./daily";
 
 const PIECE_COUNT_RANGE: Record<Difficulty, [number, number]> = {
@@ -1030,7 +1029,7 @@ function checkCompletion(): void {
     solveTimeMs = getElapsed();
     timerActiveStart = null;
     clearStoredElapsed(currentDateKey, currentDifficulty);
-    clearPuzzleState(currentDateKey, currentDifficulty);
+    // Keep puzzle state saved (don't clear) so revisiting shows the correct solved board
     markDailyComplete(currentDateKey, currentDifficulty, solveTimeMs);
   }
 }
@@ -1129,10 +1128,34 @@ function init(): void {
   if (isDailyComplete(currentDateKey, difficulty)) {
     solvedMarked = true;
     solveTimeMs = getDailySolveTime(currentDateKey, difficulty);
-    for (let i = 0; i < boardOccupancy.length; i++) {
-      boardOccupancy[i] = i;
-      // Flip rotation to match slot orientation (all pieces start at rotation 0 = up)
-      if (!boardSlotPos[i].up) pieceRotation[i] = 3;
+    // savedState was already applied above if valid; only fall back to
+    // reconstruction from solutionValues when no persisted state exists
+    // (e.g. solved before state-persistence was added to checkCompletion).
+    const hasSavedState = savedState !== null &&
+      savedState.occupancy.length === boardOccupancy.length &&
+      savedState.rotations.length === pieceRotation.length;
+    if (!hasSavedState) {
+      const used = new Set<number>();
+      for (let s = 0; s < boardOccupancy.length; s++) {
+        const up = boardSlotPos[s].up;
+        const sv = solutionValues[s];
+        const validRots = up ? [0, 2, 4] : [1, 3, 5];
+        for (let pi = 0; pi < pieces.length; pi++) {
+          if (used.has(pi)) continue;
+          let placed = false;
+          for (const rot of validRots) {
+            const v = rotatedValues(pieces[pi], rot);
+            if (v[0] === sv[0] && v[1] === sv[1] && v[2] === sv[2]) {
+              boardOccupancy[s] = pi;
+              pieceRotation[pi] = rot;
+              used.add(pi);
+              placed = true;
+              break;
+            }
+          }
+          if (placed) break;
+        }
+      }
     }
     render(ctx);
   } else {

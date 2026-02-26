@@ -192,9 +192,7 @@ randomly via the daily RNG so the board shape varies each day.
 
 ## What's planned next
 Ordered by impact on new-user experience:
-- [ ] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the
-  home screen and works offline; high value for a mobile-first daily game
-- [ ] the solved puzzle when you return to the page is jumlbed up and therefore contrainst marked wrong.
+- [ ] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the home screen and works offline; high value for a mobile-first daily game
 
 
 ## CSS / layout notes
