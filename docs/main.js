@@ -172,7 +172,7 @@
   }
 
   // src/main.ts
-  function render(canvas, ctx, status) {
+  function render(canvas, ctx) {
     const layout = computeGridLayout(ALL_PIECES.length);
     canvas.width = layout.canvasW;
     canvas.height = layout.canvasH;
@@ -185,7 +185,6 @@
       const cy = layout.pad + row * layout.cellH + layout.cellH / 2;
       drawPiece(ctx, cx, cy, layout.r, piece);
     });
-    status.textContent = `Full triomino set \u2013 ${ALL_PIECES.length} pieces`;
   }
   function updateButtonStates() {
     const dateKey = getUtcDateKey();
@@ -227,17 +226,27 @@
   }
   function init() {
     const canvas = document.getElementById("board");
-    const status = document.getElementById("status");
-    if (!canvas || !status) {
+    const detailsEl = document.getElementById("tile-set");
+    if (!canvas) {
       console.error("Could not find required DOM elements.");
       return;
     }
     const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      status.textContent = "Canvas 2D not supported in this browser.";
+    if (!ctx)
       return;
+    let rendered = false;
+    function renderOnce() {
+      if (!rendered) {
+        render(canvas, ctx);
+        rendered = true;
+      }
     }
-    render(canvas, ctx, status);
+    if (detailsEl) {
+      detailsEl.addEventListener("toggle", () => {
+        if (detailsEl.open)
+          renderOnce();
+      });
+    }
     updateButtonStates();
     startCountdown();
     const { streak, completedToday } = getStreakData();
@@ -265,6 +274,7 @@
       btn.addEventListener("click", () => {
         resetDailyProgress(getUtcDateKey());
         resetStreak();
+        localStorage.removeItem("triominoes-hint-dismissed");
         incrementDevOffset();
         window.location.reload();
       });
@@ -277,7 +287,10 @@
         return;
       lastWidth = window.innerWidth;
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => render(canvas, ctx, status), 150);
+      resizeTimer = setTimeout(() => {
+        if (!detailsEl || detailsEl.open)
+          render(canvas, ctx);
+      }, 150);
     });
   }
   document.addEventListener("DOMContentLoaded", init);

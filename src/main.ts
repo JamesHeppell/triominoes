@@ -5,8 +5,7 @@ import { Difficulty, DEV_MODE, getUtcDateKey, isDailyComplete, msUntilUtcMidnigh
 
 function render(
   canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
-  status: HTMLElement
+  ctx: CanvasRenderingContext2D
 ): void {
   const layout = computeGridLayout(ALL_PIECES.length);
 
@@ -23,8 +22,6 @@ function render(
     const cy = layout.pad + row * layout.cellH + layout.cellH / 2;
     drawPiece(ctx, cx, cy, layout.r, piece);
   });
-
-  status.textContent = `Full triomino set – ${ALL_PIECES.length} pieces`;
 }
 
 function updateButtonStates(): void {
@@ -72,20 +69,25 @@ function startCountdown(): void {
 
 function init(): void {
   const canvas = document.getElementById("board") as HTMLCanvasElement | null;
-  const status = document.getElementById("status") as HTMLElement | null;
+  const detailsEl = document.getElementById("tile-set") as HTMLDetailsElement | null;
 
-  if (!canvas || !status) {
+  if (!canvas) {
     console.error("Could not find required DOM elements.");
     return;
   }
 
   const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    status.textContent = "Canvas 2D not supported in this browser.";
-    return;
+  if (!ctx) return;
+
+  // Render lazily — only when the disclosure is first opened.
+  let rendered = false;
+  function renderOnce(): void {
+    if (!rendered) { render(canvas!, ctx!); rendered = true; }
+  }
+  if (detailsEl) {
+    detailsEl.addEventListener("toggle", () => { if (detailsEl.open) renderOnce(); });
   }
 
-  render(canvas, ctx, status);
   updateButtonStates();
   startCountdown();
 
@@ -116,6 +118,7 @@ function init(): void {
     btn.addEventListener("click", () => {
       resetDailyProgress(getUtcDateKey());
       resetStreak();
+      localStorage.removeItem("triominoes-hint-dismissed");
       incrementDevOffset();
       window.location.reload();
     });
@@ -128,7 +131,7 @@ function init(): void {
     if (window.innerWidth === lastWidth) return;
     lastWidth = window.innerWidth;
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => render(canvas, ctx, status), 150);
+    resizeTimer = setTimeout(() => { if (!detailsEl || detailsEl.open) render(canvas, ctx); }, 150);
   });
 }
 

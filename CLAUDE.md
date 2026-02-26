@@ -170,10 +170,35 @@ randomly via the daily RNG so the board shape varies each day.
   - Section 3: all 6 rotations of a sample piece in a 3×2 CSS grid
   - Section 4: extra constraint types with tinted SVG examples and explanatory text
   - "← Back" link returns to home; "Play today's puzzle" CTA at bottom
+- [x] **Controls discoverability** — hint text "tap to rotate · drag to board" rendered below the tray;
+  shown for the entire first puzzle, then permanently dismissed (localStorage `triominoes-hint-dismissed`)
+  on first puzzle completion so it never causes a mid-puzzle resize; HINT_H (26px) reserved in layout
+- [x] **Home page clarity** — 56-piece grid collapsed behind a `<details>` toggle ("All 56 tiles ▾");
+  canvas renders lazily on first open; play buttons are the visual hero on load
+- [x] **Drag snap preview** — while dragging (after 8px movement), the piece is drawn at 40% opacity
+  at the current snap target slot (same logic as drop: exact hit then nearest centroid ≤ 1.2R),
+  with rotation auto-adapted to the slot's orientation
+- [x] **Colorblind accessibility** — mismatch edges: ✕ mark drawn at edge midpoint on a dark backing
+  disc; constraint badges: label swaps to ✓ / ✗ when all constrained slots are filled (shape-based,
+  colour is now a secondary signal)
+- [x] **Share text** — updated to `🔺 Triominoes · 26 Feb\nSolved Easy in 3m 42s — can you beat it?`;
+  names the game, includes the date for urgency, and has a competitive hook for cold readers
 
 ## What's planned next
+Ordered by impact on new-user experience:
+- [ ] Improve home page display - button as focus. 
+- [ ] **Undo** — single-step undo (Ctrl+Z / shake / button) so accidental drags don't frustrate;
+  store previous `boardOccupancy` + `pieceRotation` snapshot and restore on undo
+- [ ] **Reset puzzle** — "reset" button (or menu option) to return all pieces to tray without losing the
+  daily seed; essential escape hatch when a player places themselves into an unsolvable state
+- [ ] **In-game constraint legend** — badges (`≠`, `≡`, numbers) have no in-play reminder of their meaning;
+  add a small persistent legend or a first-encounter tooltip on the puzzle page
+- [ ] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the
+  home screen and works offline; high value for a mobile-first daily game
+- [ ] **Streak-ended state** — when a streak resets after a missed day show a brief message ("Streak ended")
+  rather than silently dropping to 0
 - [ ] **Curated shapes per difficulty** — currently shapes are random across all difficulties;
-  could weight or restrict options so easy always gets compact shapes and hard gets elongated ones
+  weight or restrict options so easy always gets compact shapes and hard gets elongated ones
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)

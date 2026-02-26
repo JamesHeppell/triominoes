@@ -80,6 +80,10 @@ let canvasH = 400;
 let boardSectionH = 0;
 let boardSlotPos: { cx: number; cy: number; up: boolean }[] = [];
 let traySlotPos:  { cx: number; cy: number }[] = [];
+let hintY = 0;          // y-centre of the hint text row; 0 when hint is dismissed
+
+/** True once the user has interacted with a piece; persisted in localStorage. */
+let hintDismissed = false;
 
 /** Current drag, or null when idle. */
 interface DragState {
@@ -425,6 +429,8 @@ function generateSolution(rng: () => number): { pieces: PieceValues[]; solutionV
 const BODY_MARGIN = 16;  // must match body padding × 2 in CSS
 const TRAY_PAD    = 12;
 const DIVIDER_H   = 14;  // vertical space for the divider line
+const HINT_H      = 26;  // height reserved below tray pieces for the hint text
+const HINT_KEY    = "triominoes-hint-dismissed";
 
 /**
  * Recomputes all position data.
@@ -449,6 +455,8 @@ function recomputeLayout(availH: number): void {
   const TRAY_CELL_W_RATIO = 68 / 30;
   const TRAY_CELL_H_RATIO = 62 / 30;
 
+  const hintReserve = hintDismissed ? 0 : HINT_H;
+
   let bestR = 10;
   for (let r = rFromWidth; r >= 10; r--) {
     const boardH  = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
@@ -456,7 +464,7 @@ function recomputeLayout(availH: number): void {
     const cellH   = r * TRAY_CELL_H_RATIO;
     const tCols   = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / cellW)));
     const tRows   = Math.ceil(n / tCols);
-    const totalH  = boardH + DIVIDER_H + 2 * TRAY_PAD + tRows * cellH;
+    const totalH  = boardH + DIVIDER_H + 2 * TRAY_PAD + tRows * cellH + hintReserve;
     if (totalH <= availH) { bestR = r; break; }
   }
 
@@ -469,7 +477,7 @@ function recomputeLayout(availH: number): void {
   const CELL_H = R * TRAY_CELL_H_RATIO;
   const trayCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / CELL_W)));
   const trayRows = Math.ceil(n / trayCols);
-  const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H;
+  const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H + hintReserve;
 
   // ── Extend canvas to fill viewport; give all extra space to board section ───
   const minContentH = Math.round(rows * bl.h + 2 * BOARD_PAD_Y + DIVIDER_H + trayContentH);
@@ -509,6 +517,8 @@ function recomputeLayout(availH: number): void {
       cy: trayStartY + TRAY_PAD + row * CELL_H + CELL_H / 2,
     });
   }
+
+  hintY = trayStartY + TRAY_PAD + trayRows * CELL_H + hintReserve / 2;
 }
 
 // ─── Render ──────────────────────────────────────────────────────────────────
@@ -563,7 +573,8 @@ function render(ctx: CanvasRenderingContext2D): void {
     const allFilled = c.slots.every(s => boardOccupancy[s] !== null);
     const satisfied = allFilled && constraintSatisfied(c);
     const badgeR = Math.max(8, Math.round(R * 0.22));
-    const label = c.kind === 'sum' ? String(c.target) : c.kind === 'all-different' ? '≠' : '≡';
+    const pendingLabel = c.kind === 'sum' ? String(c.target) : c.kind === 'all-different' ? '≠' : '≡';
+    const label = allFilled ? (satisfied ? '✓' : '✗') : pendingLabel;
 
     ctx.save();
     ctx.beginPath();
@@ -609,6 +620,24 @@ function render(ctx: CanvasRenderingContext2D): void {
       ctx.moveTo(i1[0], i1[1]);
       ctx.lineTo(i2[0], i2[1]);
       ctx.stroke();
+
+      // ✕ mark at edge midpoint — shape-based indicator for colorblind users
+      const mx = (i1[0] + i2[0]) / 2;
+      const my = (i1[1] + i2[1]) / 2;
+      const xr = Math.max(4, Math.round(R * 0.13));
+      ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(mx, my, xr, 0, Math.PI * 2);
+      ctx.fillStyle = "#1e2d50";
+      ctx.fill();
+      ctx.strokeStyle = "#ff4040";
+      ctx.lineWidth = Math.max(1.5, Math.round(R * 0.065));
+      const a = xr * 0.55;
+      ctx.beginPath();
+      ctx.moveTo(mx - a, my - a); ctx.lineTo(mx + a, my + a);
+      ctx.moveTo(mx + a, my - a); ctx.lineTo(mx - a, my + a);
+      ctx.stroke();
       ctx.restore();
     }
   }
@@ -629,6 +658,29 @@ function render(ctx: CanvasRenderingContext2D): void {
         drawPiece(ctx, cx, cy, R, rotatedValues(pieces[i], pieceRotation[i]), rotationIsUp(pieceRotation[i]));
       } else {
         drawStarSlot(ctx, cx, cy, R);
+      }
+    }
+
+    // ── Controls hint (shown until first interaction) ─────────────────────────
+    if (!hintDismissed) {
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.font = "13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("tap to rotate  ·  drag to board", canvasW / 2, hintY);
+    }
+
+    // ── Snap preview ghost ────────────────────────────────────────────────────
+    if (drag && Math.hypot(drag.x - drag.startX, drag.y - drag.startY) >= 8) {
+      const ghostSlot = snapTarget(drag.x, drag.y);
+      if (ghostSlot !== -1) {
+        const { cx, cy, up } = boardSlotPos[ghostSlot];
+        let ghostRot = pieceRotation[drag.pieceIdx];
+        if (rotationIsUp(ghostRot) !== up) ghostRot = (ghostRot + 3) % 6;
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        drawPiece(ctx, cx, cy, R, rotatedValues(pieces[drag.pieceIdx], ghostRot), up);
+        ctx.restore();
       }
     }
 
@@ -911,6 +963,10 @@ function checkCompletion(): void {
   savePuzzleState(currentDateKey, currentDifficulty, boardOccupancy, pieceRotation);
   if (isPuzzleSolved()) {
     solvedMarked = true;
+    if (!hintDismissed) {
+      hintDismissed = true;
+      localStorage.setItem(HINT_KEY, "1");
+    }
     solveTimeMs = getElapsed();
     timerActiveStart = null;
     clearStoredElapsed(currentDateKey, currentDifficulty);
@@ -981,6 +1037,7 @@ function init(): void {
     render(ctx);
   };
 
+  hintDismissed = localStorage.getItem(HINT_KEY) === "1";
   redraw();
   attachPointerEvents(canvas, ctx);
 
@@ -990,8 +1047,10 @@ function init(): void {
       const label   = currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
       const homeUrl = window.location.origin +
                       window.location.pathname.replace("puzzle.html", "index.html");
+      const [y, m, d] = currentDateKey.split("-").map(Number);
+      const dateStr = new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
       const timeStr = solveTimeMs !== null ? ` in ${formatSolveTime(solveTimeMs)}` : "";
-      const text    = `I solved today's Triominoes puzzle (${label})${timeStr} 🎉`;
+      const text    = `🔺 Triominoes · ${dateStr}\nSolved ${label}${timeStr} — can you beat it?`;
       try {
         if (navigator.share) {
           await navigator.share({ title: "Triominoes", text, url: homeUrl });
