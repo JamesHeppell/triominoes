@@ -461,6 +461,7 @@
   var DIVIDER_H = 14;
   var HINT_H = 26;
   var HINT_KEY = "triominoes-hint-dismissed";
+  var CONSTRAINT_TIP_KEY = "triominoes-constraint-tip-v1";
   function recomputeLayout(availH) {
     const { rows, cols } = boardShape;
     const n = pieces.length;
@@ -823,6 +824,47 @@
       render(ctx);
     });
   }
+  function showConstraintTooltip(container) {
+    if (localStorage.getItem(CONSTRAINT_TIP_KEY) === "1")
+      return;
+    if (boardConstraints.length === 0)
+      return;
+    const tip = document.createElement("div");
+    tip.className = "constraint-tooltip";
+    const heading = document.createElement("p");
+    heading.className = "constraint-tooltip__heading";
+    heading.textContent = "Coloured badges:";
+    tip.appendChild(heading);
+    for (const c of boardConstraints) {
+      const row = document.createElement("div");
+      row.className = "constraint-tooltip__row";
+      const badge = document.createElement("span");
+      badge.className = "constraint-tooltip__badge";
+      badge.style.background = c.color;
+      badge.textContent = c.kind === "sum" ? String(c.target) : c.kind === "all-different" ? "\u2260" : "\u2261";
+      const desc = document.createElement("span");
+      desc.className = "constraint-tooltip__desc";
+      if (c.kind === "sum") {
+        desc.textContent = c.slots.length === 1 ? `corners sum to ${c.target}` : `both tiles sum to ${c.target}`;
+      } else if (c.kind === "all-different") {
+        desc.textContent = "all 3 corners differ";
+      } else {
+        desc.textContent = "all 3 corners match";
+      }
+      row.append(badge, desc);
+      tip.appendChild(row);
+    }
+    const btn = document.createElement("button");
+    btn.className = "btn btn-easy constraint-tooltip__btn";
+    btn.textContent = "Got it";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      localStorage.setItem(CONSTRAINT_TIP_KEY, "1");
+      tip.remove();
+    });
+    tip.appendChild(btn);
+    container.appendChild(tip);
+  }
   function updateSolvedPanel() {
     const difficulties = ["easy", "medium", "hard"];
     for (const d of difficulties) {
@@ -994,6 +1036,7 @@ ${homeUrl}`);
         }
       });
     }
+    const puzzleMain = document.querySelector(".puzzle-main");
     if (isDailyComplete(currentDateKey, difficulty)) {
       solvedMarked = true;
       solveTimeMs = getDailySolveTime(currentDateKey, difficulty);
@@ -1003,10 +1046,13 @@ ${homeUrl}`);
           pieceRotation[i] = 3;
       }
       render(ctx);
-    } else if (timerElapsed >= 1e4) {
-      pauseTimer();
-      showReadyOverlay();
     } else {
+      if (puzzleMain)
+        showConstraintTooltip(puzzleMain);
+      if (timerElapsed >= 1e4) {
+        pauseTimer();
+        showReadyOverlay();
+      }
     }
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {

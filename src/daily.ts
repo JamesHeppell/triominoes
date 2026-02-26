@@ -99,10 +99,18 @@ function loadStreakData(): StreakData {
   }
 }
 
-/** Returns the current streak and whether the player has completed a puzzle today. */
-export function getStreakData(): { streak: number; completedToday: boolean } {
+/** Returns the current streak, whether the player completed a puzzle today, and whether a streak was broken. */
+export function getStreakData(): { streak: number; completedToday: boolean; streakEnded: boolean } {
   const { streak, lastDate } = loadStreakData();
-  return { streak, completedToday: lastDate === getUtcDateKey() };
+  const today = getUtcDateKey();
+  if (lastDate === today) return { streak, completedToday: true, streakEnded: false };
+
+  const [y, m, d] = today.split("-").map(Number);
+  const prev = new Date(Date.UTC(y, m - 1, d - 1));
+  const yesterdayKey = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, "0")}-${String(prev.getUTCDate()).padStart(2, "0")}`;
+
+  const streakEnded = streak > 0 && lastDate !== "" && lastDate !== yesterdayKey;
+  return { streak, completedToday: false, streakEnded };
 }
 
 /** Wipes the stored streak entirely (dev reset only). */

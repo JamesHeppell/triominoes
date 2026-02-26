@@ -187,18 +187,14 @@ randomly via the daily RNG so the board shape varies each day.
 ## What's planned next
 Ordered by impact on new-user experience:
 - [ ] Improve home page display - button as focus. 
-- [ ] **Undo** — single-step undo (Ctrl+Z / shake / button) so accidental drags don't frustrate;
-  store previous `boardOccupancy` + `pieceRotation` snapshot and restore on undo
-- [ ] **Reset puzzle** — "reset" button (or menu option) to return all pieces to tray without losing the
-  daily seed; essential escape hatch when a player places themselves into an unsolvable state
-- [ ] **In-game constraint legend** — badges (`≠`, `≡`, numbers) have no in-play reminder of their meaning;
-  add a small persistent legend or a first-encounter tooltip on the puzzle page
+- [x] **In-game constraint legend** — first-encounter tooltip card shown at top of board; lists each badge
+  with its color and a plain-English description; dismissed via "Got it"; persisted in localStorage
+  (`triominoes-constraint-tip-v1`); hidden under the ready-overlay (z-index 5 vs 10)
 - [ ] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the
   home screen and works offline; high value for a mobile-first daily game
-- [ ] **Streak-ended state** — when a streak resets after a missed day show a brief message ("Streak ended")
+- [x] **Streak-ended state** — when a streak resets after a missed day show a brief message ("Streak ended")
   rather than silently dropping to 0
-- [ ] **Curated shapes per difficulty** — currently shapes are random across all difficulties;
-  weight or restrict options so easy always gets compact shapes and hard gets elongated ones
+
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)

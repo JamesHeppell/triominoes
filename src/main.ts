@@ -91,8 +91,19 @@ function init(): void {
   updateButtonStates();
   startCountdown();
 
-  const { streak, completedToday } = getStreakData();
-  if (streak > 0) {
+  const { streak, completedToday, streakEnded } = getStreakData();
+  if (streakEnded) {
+    const badge = document.createElement("div");
+    badge.className = "streak-badge streak-badge--ended";
+    const countEl = document.createElement("span");
+    countEl.className = "streak-count";
+    countEl.textContent = `${streak}-day`;
+    const labelEl = document.createElement("span");
+    labelEl.className = "streak-label";
+    labelEl.textContent = "streak ended";
+    badge.append(countEl, labelEl);
+    document.body.appendChild(badge);
+  } else if (streak > 0) {
     const badge = document.createElement("div");
     badge.className = "streak-badge" + (completedToday ? " streak-badge--done" : "");
     const countEl = document.createElement("span");
@@ -119,6 +130,7 @@ function init(): void {
       resetDailyProgress(getUtcDateKey());
       resetStreak();
       localStorage.removeItem("triominoes-hint-dismissed");
+      localStorage.removeItem("triominoes-constraint-tip-v1");
       incrementDevOffset();
       window.location.reload();
     });

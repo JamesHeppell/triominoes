@@ -96,6 +96,15 @@ h1 {
   border-color: #e94560;
 }
 
+.streak-badge--ended {
+  opacity: 0.55;
+}
+
+.streak-badge--ended .streak-count {
+  color: #7a8ba8;
+  font-size: 0.85rem;
+}
+
 .streak-count {
   font-size: 1rem;
   font-weight: bold;
@@ -448,6 +457,63 @@ main {
   align-items: center;
   gap: 1rem;
   width: 100%;
+}
+
+.constraint-tooltip {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(14, 22, 45, 0.97);
+  border: 1px solid #2a3a5c;
+  border-radius: 10px;
+  padding: 0.6rem 0.85rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  z-index: 5;
+  pointer-events: auto;
+  animation: fadeIn 0.2s ease;
+  min-width: 180px;
+}
+
+.constraint-tooltip__heading {
+  font-size: 0.65rem;
+  color: #7a8ba8;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 0.1rem;
+}
+
+.constraint-tooltip__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.constraint-tooltip__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  font-weight: bold;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.constraint-tooltip__desc {
+  font-size: 0.8rem;
+  color: #c8d4e8;
+}
+
+.constraint-tooltip__btn {
+  align-self: flex-end;
+  margin-top: 0.25rem;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
 }
 
 .ready-overlay {

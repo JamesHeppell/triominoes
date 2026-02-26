@@ -132,7 +132,14 @@
   }
   function getStreakData() {
     const { streak, lastDate } = loadStreakData();
-    return { streak, completedToday: lastDate === getUtcDateKey() };
+    const today = getUtcDateKey();
+    if (lastDate === today)
+      return { streak, completedToday: true, streakEnded: false };
+    const [y, m, d] = today.split("-").map(Number);
+    const prev = new Date(Date.UTC(y, m - 1, d - 1));
+    const yesterdayKey = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, "0")}-${String(prev.getUTCDate()).padStart(2, "0")}`;
+    const streakEnded = streak > 0 && lastDate !== "" && lastDate !== yesterdayKey;
+    return { streak, completedToday: false, streakEnded };
   }
   function resetStreak() {
     localStorage.removeItem(STREAK_KEY);
@@ -249,8 +256,19 @@
     }
     updateButtonStates();
     startCountdown();
-    const { streak, completedToday } = getStreakData();
-    if (streak > 0) {
+    const { streak, completedToday, streakEnded } = getStreakData();
+    if (streakEnded) {
+      const badge = document.createElement("div");
+      badge.className = "streak-badge streak-badge--ended";
+      const countEl = document.createElement("span");
+      countEl.className = "streak-count";
+      countEl.textContent = `${streak}-day`;
+      const labelEl = document.createElement("span");
+      labelEl.className = "streak-label";
+      labelEl.textContent = "streak ended";
+      badge.append(countEl, labelEl);
+      document.body.appendChild(badge);
+    } else if (streak > 0) {
       const badge = document.createElement("div");
       badge.className = "streak-badge" + (completedToday ? " streak-badge--done" : "");
       const countEl = document.createElement("span");
@@ -275,6 +293,7 @@
         resetDailyProgress(getUtcDateKey());
         resetStreak();
         localStorage.removeItem("triominoes-hint-dismissed");
+        localStorage.removeItem("triominoes-constraint-tip-v1");
         incrementDevOffset();
         window.location.reload();
       });
