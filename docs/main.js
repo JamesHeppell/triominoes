@@ -233,7 +233,8 @@
   }
   function init() {
     const canvas = document.getElementById("board");
-    const detailsEl = document.getElementById("tile-set");
+    const modal = document.getElementById("tile-modal");
+    const tileBtn = document.getElementById("tile-set-btn");
     if (!canvas) {
       console.error("Could not find required DOM elements.");
       return;
@@ -248,12 +249,19 @@
         rendered = true;
       }
     }
-    if (detailsEl) {
-      detailsEl.addEventListener("toggle", () => {
-        if (detailsEl.open)
-          renderOnce();
+    if (tileBtn && modal) {
+      tileBtn.addEventListener("click", () => {
+        renderOnce();
+        modal.hidden = false;
+      });
+      modal.addEventListener("click", () => {
+        modal.hidden = true;
       });
     }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal)
+        modal.hidden = true;
+    });
     updateButtonStates();
     startCountdown();
     const { streak, completedToday, streakEnded } = getStreakData();
@@ -307,7 +315,7 @@
       lastWidth = window.innerWidth;
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        if (!detailsEl || detailsEl.open)
+        if (modal && !modal.hidden)
           render(canvas, ctx);
       }, 150);
     });

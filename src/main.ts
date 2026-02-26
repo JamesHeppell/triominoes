@@ -69,7 +69,8 @@ function startCountdown(): void {
 
 function init(): void {
   const canvas = document.getElementById("board") as HTMLCanvasElement | null;
-  const detailsEl = document.getElementById("tile-set") as HTMLDetailsElement | null;
+  const modal  = document.getElementById("tile-modal") as HTMLElement | null;
+  const tileBtn = document.getElementById("tile-set-btn") as HTMLButtonElement | null;
 
   if (!canvas) {
     console.error("Could not find required DOM elements.");
@@ -79,14 +80,23 @@ function init(): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  // Render lazily — only when the disclosure is first opened.
+  // Render lazily — only on first open.
   let rendered = false;
   function renderOnce(): void {
     if (!rendered) { render(canvas!, ctx!); rendered = true; }
   }
-  if (detailsEl) {
-    detailsEl.addEventListener("toggle", () => { if (detailsEl.open) renderOnce(); });
+
+  if (tileBtn && modal) {
+    tileBtn.addEventListener("click", () => {
+      renderOnce();
+      modal.hidden = false;
+    });
+    modal.addEventListener("click", () => { modal.hidden = true; });
   }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal) modal.hidden = true;
+  });
 
   updateButtonStates();
   startCountdown();
@@ -143,7 +153,7 @@ function init(): void {
     if (window.innerWidth === lastWidth) return;
     lastWidth = window.innerWidth;
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (!detailsEl || detailsEl.open) render(canvas, ctx); }, 150);
+    resizeTimer = setTimeout(() => { if (modal && !modal.hidden) render(canvas, ctx); }, 150);
   });
 }
 

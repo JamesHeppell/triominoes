@@ -183,17 +183,18 @@ randomly via the daily RNG so the board shape varies each day.
   colour is now a secondary signal)
 - [x] **Share text** — updated to `🔺 Triominoes · 26 Feb\nSolved Easy in 3m 42s — can you beat it?`;
   names the game, includes the date for urgency, and has a competitive hook for cold readers
-
-## What's planned next
-Ordered by impact on new-user experience:
-- [ ] Improve home page display - button as focus. 
 - [x] **In-game constraint legend** — first-encounter tooltip card shown at top of board; lists each badge
   with its color and a plain-English description; dismissed via "Got it"; persisted in localStorage
   (`triominoes-constraint-tip-v1`); hidden under the ready-overlay (z-index 5 vs 10)
+- [x] **Streak-ended state** — when a streak resets after  
+  a missed day show a brief message ("Streak ended")
+  rather than silently dropping to 0
+
+## What's planned next
+Ordered by impact on new-user experience:
 - [ ] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the
   home screen and works offline; high value for a mobile-first daily game
-- [x] **Streak-ended state** — when a streak resets after a missed day show a brief message ("Streak ended")
-  rather than silently dropping to 0
+- [ ] the solved puzzle when you return to the page is jumlbed up and therefore contrainst marked wrong.
 
 
 ## CSS / layout notes
