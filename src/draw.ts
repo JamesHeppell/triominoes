@@ -2,6 +2,17 @@ import { PieceValues } from "./pieces";
 
 const TEXT_FRAC = 0.42;
 
+/** Returns canvas colors matching the current light/dark theme. */
+export function getPalette(): { canvasBg: string; slotFill: string; slotStroke: string; solvedOverlay: string } {
+  const light = document.documentElement.classList.contains("light");
+  return {
+    canvasBg:     light ? "#e8eef8" : "#16213e",
+    slotFill:     light ? "#c8d5e8" : "#1e2d50",
+    slotStroke:   light ? "#4a6595" : "#5577aa",
+    solvedOverlay: light ? "rgba(220,228,242,0.85)" : "rgba(22,33,62,0.78)",
+  };
+}
+
 /** Compute the three vertices of an equilateral triangle centred at (cx, cy).
  *  up=true → apex at top (▲), up=false → apex at bottom (▽). */
 export function triVertices(
@@ -62,7 +73,7 @@ export function drawPiece(
   }
 }
 
-/** Draw an empty board slot (dashed outline, dark fill). */
+/** Draw an empty board slot (dashed outline, theme-aware fill). */
 export function drawEmptySlot(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -70,10 +81,11 @@ export function drawEmptySlot(
   r: number,
   up: boolean
 ): void {
+  const { slotFill, slotStroke } = getPalette();
   const verts = triVertices(cx, cy, r, up);
 
-  ctx.fillStyle = "#1e2d50";
-  ctx.strokeStyle = "#5577aa";
+  ctx.fillStyle = slotFill;
+  ctx.strokeStyle = slotStroke;
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 4]);
   tracePath(ctx, verts);
@@ -89,8 +101,9 @@ export function drawStarSlot(
   cy: number,
   r: number
 ): void {
-  ctx.fillStyle = "#1e2d50";
-  ctx.strokeStyle = "#5577aa";
+  const { slotFill, slotStroke } = getPalette();
+  ctx.fillStyle = slotFill;
+  ctx.strokeStyle = slotStroke;
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 4]);
 

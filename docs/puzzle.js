@@ -16,6 +16,15 @@
 
   // src/draw.ts
   var TEXT_FRAC = 0.42;
+  function getPalette() {
+    const light = document.documentElement.classList.contains("light");
+    return {
+      canvasBg: light ? "#e8eef8" : "#16213e",
+      slotFill: light ? "#c8d5e8" : "#1e2d50",
+      slotStroke: light ? "#4a6595" : "#5577aa",
+      solvedOverlay: light ? "rgba(220,228,242,0.85)" : "rgba(22,33,62,0.78)"
+    };
+  }
   function triVertices(cx, cy, r, up) {
     const start = up ? -Math.PI / 2 : Math.PI / 2;
     return [0, 1, 2].map((i) => [
@@ -53,9 +62,10 @@
     }
   }
   function drawEmptySlot(ctx, cx, cy, r, up) {
+    const { slotFill, slotStroke } = getPalette();
     const verts = triVertices(cx, cy, r, up);
-    ctx.fillStyle = "#1e2d50";
-    ctx.strokeStyle = "#5577aa";
+    ctx.fillStyle = slotFill;
+    ctx.strokeStyle = slotStroke;
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);
     tracePath(ctx, verts);
@@ -64,8 +74,9 @@
     ctx.setLineDash([]);
   }
   function drawStarSlot(ctx, cx, cy, r) {
-    ctx.fillStyle = "#1e2d50";
-    ctx.strokeStyle = "#5577aa";
+    const { slotFill, slotStroke } = getPalette();
+    ctx.fillStyle = slotFill;
+    ctx.strokeStyle = slotStroke;
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);
     tracePath(ctx, triVertices(cx, cy, r, false));
@@ -468,6 +479,7 @@
     const TRAY_CELL_H_RATIO = 62 / 30;
     const hintReserve = hintDismissed ? 0 : HINT_H;
     const minTrayCols = currentDifficulty === "hard" ? 4 : 1;
+    const maxTrayCols = Math.ceil(n / 2);
     let bestR = 10;
     for (let r = rFromWidth; r >= 10; r--) {
       const boardH = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
@@ -476,7 +488,7 @@
       const trayAvail = available - TRAY_PAD * 2;
       if (minTrayCols * cellW > trayAvail)
         continue;
-      const tCols = Math.max(minTrayCols, Math.min(n, Math.floor(trayAvail / cellW)));
+      const tCols = Math.max(minTrayCols, Math.min(maxTrayCols, Math.floor(trayAvail / cellW)));
       const tRows = Math.ceil(n / tCols);
       const totalH = boardH + DIVIDER_H + 2 * TRAY_PAD + tRows * cellH + hintReserve;
       if (totalH <= availH) {
@@ -489,7 +501,7 @@
     const CELL_W = R * TRAY_CELL_W_RATIO;
     const CELL_H = R * TRAY_CELL_H_RATIO;
     const trayAvailFinal = available - TRAY_PAD * 2;
-    const trayCols = Math.max(minTrayCols, Math.min(n, Math.floor(trayAvailFinal / CELL_W)));
+    const trayCols = Math.max(minTrayCols, Math.min(maxTrayCols, Math.floor(trayAvailFinal / CELL_W)));
     const trayRows = Math.ceil(n / trayCols);
     const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H + hintReserve;
     const minContentH = Math.round(rows * bl.h + 2 * BOARD_PAD_Y + DIVIDER_H + trayContentH);
@@ -528,7 +540,8 @@
     const renderH = isSolved ? boardSectionH : canvasH;
     if (ctx.canvas.height !== renderH)
       ctx.canvas.height = renderH;
-    ctx.fillStyle = "#16213e";
+    const palette = getPalette();
+    ctx.fillStyle = palette.canvasBg;
     ctx.fillRect(0, 0, canvasW, renderH);
     for (let i = 0; i < boardSlotPos.length; i++) {
       const { cx, cy, up } = boardSlotPos[i];
@@ -607,7 +620,7 @@
         ctx.shadowBlur = 0;
         ctx.beginPath();
         ctx.arc(mx, my, xr, 0, Math.PI * 2);
-        ctx.fillStyle = "#1e2d50";
+        ctx.fillStyle = palette.slotFill;
         ctx.fill();
         ctx.strokeStyle = "#ff4040";
         ctx.lineWidth = Math.max(1.5, Math.round(R * 0.065));
@@ -669,7 +682,7 @@
       solvedPanelEl.hidden = !isSolved;
     if (isSolved) {
       updateSolvedPanel();
-      ctx.fillStyle = "rgba(22, 33, 62, 0.78)";
+      ctx.fillStyle = palette.solvedOverlay;
       ctx.fillRect(0, 0, canvasW, boardSectionH);
       let solvedSize = Math.max(28, Math.round(R * 1.3));
       ctx.font = `bold ${solvedSize}px sans-serif`;

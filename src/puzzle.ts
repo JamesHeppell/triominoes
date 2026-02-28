@@ -1,5 +1,5 @@
 import { ALL_PIECES, PieceValues } from "./pieces";
-import { drawPiece, drawEmptySlot, drawStarSlot, triVertices } from "./draw";
+import { drawPiece, drawEmptySlot, drawStarSlot, triVertices, getPalette } from "./draw";
 import { computeBoardLayout } from "./layout";
 import {
   Difficulty,
@@ -458,8 +458,12 @@ function recomputeLayout(availH: number): void {
 
   const hintReserve = hintDismissed ? 0 : HINT_H;
 
-  // Hard mode: enforce at least 4 tray columns so the board gets more space
+  // Hard mode: enforce at least 4 tray columns so the board gets more space.
+  // Max columns capped at half the piece count so wide screens never show a
+  // single long row (e.g. 11 across + 1 below); ceil(n/2) keeps two roughly
+  // equal rows and naturally scales if the piece-count range changes.
   const minTrayCols = currentDifficulty === 'hard' ? 4 : 1;
+  const maxTrayCols = Math.ceil(n / 2);
 
   let bestR = 10;
   for (let r = rFromWidth; r >= 10; r--) {
@@ -469,7 +473,7 @@ function recomputeLayout(availH: number): void {
     const trayAvail = available - TRAY_PAD * 2;
     // If minTrayCols can't fit horizontally at this R, keep shrinking
     if (minTrayCols * cellW > trayAvail) continue;
-    const tCols   = Math.max(minTrayCols, Math.min(n, Math.floor(trayAvail / cellW)));
+    const tCols   = Math.max(minTrayCols, Math.min(maxTrayCols, Math.floor(trayAvail / cellW)));
     const tRows   = Math.ceil(n / tCols);
     const totalH  = boardH + DIVIDER_H + 2 * TRAY_PAD + tRows * cellH + hintReserve;
     if (totalH <= availH) { bestR = r; break; }
@@ -483,7 +487,7 @@ function recomputeLayout(availH: number): void {
   const CELL_W = R * TRAY_CELL_W_RATIO;
   const CELL_H = R * TRAY_CELL_H_RATIO;
   const trayAvailFinal = available - TRAY_PAD * 2;
-  const trayCols = Math.max(minTrayCols, Math.min(n, Math.floor(trayAvailFinal / CELL_W)));
+  const trayCols = Math.max(minTrayCols, Math.min(maxTrayCols, Math.floor(trayAvailFinal / CELL_W)));
   const trayRows = Math.ceil(n / trayCols);
   const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H + hintReserve;
 
@@ -542,7 +546,8 @@ function render(ctx: CanvasRenderingContext2D): void {
   if (ctx.canvas.height !== renderH) ctx.canvas.height = renderH; // clears canvas
 
   // Background
-  ctx.fillStyle = "#16213e";
+  const palette = getPalette();
+  ctx.fillStyle = palette.canvasBg;
   ctx.fillRect(0, 0, canvasW, renderH);
 
   // ── Board slots ───────────────────────────────────────────────────────────
@@ -637,7 +642,7 @@ function render(ctx: CanvasRenderingContext2D): void {
       ctx.shadowBlur = 0;
       ctx.beginPath();
       ctx.arc(mx, my, xr, 0, Math.PI * 2);
-      ctx.fillStyle = "#1e2d50";
+      ctx.fillStyle = palette.slotFill;
       ctx.fill();
       ctx.strokeStyle = "#ff4040";
       ctx.lineWidth = Math.max(1.5, Math.round(R * 0.065));
@@ -709,7 +714,7 @@ function render(ctx: CanvasRenderingContext2D): void {
   if (isSolved) {
     updateSolvedPanel();
 
-    ctx.fillStyle = "rgba(22, 33, 62, 0.78)";
+    ctx.fillStyle = palette.solvedOverlay;
     ctx.fillRect(0, 0, canvasW, boardSectionH);
 
     let solvedSize = Math.max(28, Math.round(R * 1.3));

@@ -13,17 +13,17 @@ Targeted at GitHub Pages (static files only — no server, no build step needed 
 
 ## File structure
 ```
-index.html          Main page — shows all 56 pieces + difficulty nav buttons
+index.html          Main page — difficulty nav, how-to-play, "View all 56 tiles" modal
 puzzle.html         Puzzle page — single canvas with board + tray
 rules.html          Static rules/tutorial page — SVG diagrams, no JS
-style.css           Shared CSS (all pages)
+style.css           Shared CSS (all pages, CSS custom properties for theming)
 src/
-  pieces.ts         Piece data model — PieceValues type, ALL_PIECES const (56 pieces)
-  draw.ts           Canvas drawing primitives (triVertices, drawPiece, drawEmptySlot, drawStarSlot)
-  layout.ts         Responsive layout maths (computeGridLayout, computeBoardLayout)
-  main.ts           Main page logic — renders 56-piece grid
-  puzzle.ts         Puzzle page logic — board, tray, drag-and-drop, rotation, generation
-  daily.ts          Daily seed, completion tracking (localStorage)
+  pieces.ts         Piece data — PieceValues type, ALL_PIECES const (56 pieces)
+  draw.ts           Canvas primitives — triVertices, drawPiece, drawEmptySlot, drawStarSlot, getPalette
+  layout.ts         Responsive layout maths — computeGridLayout, computeBoardLayout
+  main.ts           Main page logic — 56-piece grid modal, theme toggle, streak badge
+  puzzle.ts         Puzzle page — board, tray, drag-and-drop, rotation, generation, constraints
+  daily.ts          Daily seed, completion tracking, streak (localStorage)
 docs/               Build output — deployed to GitHub Pages
 ```
 
@@ -35,168 +35,138 @@ docs/               Build output — deployed to GitHub Pages
 ## Rotation model (6 orientations)
 - `rotation` ∈ {0,1,2,3,4,5}, incremented by 1 on each tap (cycles)
 - `rotationIsUp(r)` → `r % 2 === 0` (0,2,4 = ▲; 1,3,5 = ▽)
-- `rotatedValues(piece, r)` → shifts which corner is "top": `shift = r % 3`
-  - returns `[piece[shift], piece[(shift+1)%3], piece[(shift+2)%3]]`
+- `rotatedValues(piece, r)` → `shift = r % 3`; returns `[piece[shift], piece[(shift+1)%3], piece[(shift+2)%3]]`
 - When dropping onto a board slot, rotation is auto-adapted if up/down doesn't match:
   `pieceRotation[i] = (rotation + 3) % 6` (flips orientation, preserves corner shift)
 
 ## Board geometry
 - Triangular grid: alternating ▲/▽ — slot `(row, col)` is up when `(row+col) % 2 === 0`
 - Centroid y: `padY + row * h + (up ? 2h/3 : h/3)`, x: `padX + (col+1) * (s/2)`
-- `R` = circumradius (capped at 60px); `s = R√3` (side); `h = 1.5R` (row height)
+- `R` = circumradius; `s = R√3` (side); `h = 1.5R` (row height)
 - `computeBoardLayout(rows, cols)` in `layout.ts` returns `{ r, s, h, canvasW, canvasH, padX, padY }`
 
 ## Drawing
-- `triVertices(cx, cy, r, up)` — returns 3 vertices `[number, number][]`, vertex 0 is always the apex
+- `triVertices(cx, cy, r, up)` — returns 3 vertices; vertex 0 is always the apex
   - ▲ (up=true):  v[0]=top-apex, v[1]=bottom-right, v[2]=bottom-left
   - ▽ (up=false): v[0]=bottom-apex, v[1]=top-left, v[2]=top-right
 - `drawPiece(ctx, cx, cy, r, values, up)` — cream fill (#FFF8EE), black labels at 42% of centroid→vertex
-- `drawEmptySlot(ctx, cx, cy, r, up)` — dashed blue outline (#5577aa), dark fill (#1e2d50)
-- `drawStarSlot(ctx, cx, cy, r)` — ▲+▽ overlaid (used for tray ghost slots when piece is elsewhere)
-- `TEXT_FRAC = 0.42` — label position; keeps text inside since inradius = R/2 and 0.42 < 0.5
+- `drawEmptySlot` / `drawStarSlot` — both call `getPalette()` for theme-aware colours
+- `getPalette()` in draw.ts — reads `document.documentElement.classList.contains('light')` at render time;
+  returns `{ canvasBg, slotFill, slotStroke, solvedOverlay }` for dark or light mode
+- `TEXT_FRAC = 0.42` — label position fraction (inradius = R/2, so 0.42 keeps text inside)
+
+## Theming (light / dark mode)
+- CSS custom properties in style.css: `:root` sets dark defaults; `html.light` overrides to light palette
+- Anti-flash inline `<script>` in each HTML `<head>` applies `.light` class before CSS renders
+- Canvas colours served by `getPalette()` — called fresh on every render, no caching
+- User preference stored in localStorage key `triominoes-theme` (`'light'` | `'dark'` | null = device default)
+- Device default via `window.matchMedia('(prefers-color-scheme: light)')`
+- Theme toggle button: fixed top-right (0.75rem from top and right), shows ☀/☾
 
 ## Adjacency matching (core rule)
-When two placed pieces share an edge, their corner values at the two shared vertices must match —
-identical to dominoes but with two matching numbers per edge instead of one.
-
-Shared corners per edge direction (▲ = slotA, ▽ = slotB — always, by convention):
-| Direction | ▲ vertex | ▽ vertex |
-|-----------|----------|----------|
-| right  (▲ left, ▽ right in same row)    | v[0] ↔ v[1], v[1] ↔ v[0] |
-| left   (▲ right, ▽ left in same row)    | v[0] ↔ v[2], v[2] ↔ v[0] |
-| below  (▲ above, ▽ below, same col)     | v[1] ↔ v[2], v[2] ↔ v[1] |
+Shared corners per edge direction (▲ = slotA, ▽ = slotB — always by convention):
+| Direction | ▲ vertex ↔ ▽ vertex |
+|-----------|----------------------|
+| right  (▲ left, ▽ right)  | v[0] ↔ v[1], v[1] ↔ v[0] |
+| left   (▲ right, ▽ left)  | v[0] ↔ v[2], v[2] ↔ v[0] |
+| below  (▲ above, ▽ below) | v[1] ↔ v[2], v[2] ↔ v[1] |
 
 `boardAdjacentPairs: AdjacentPair[]` — all internal edges, computed once from boardShape.
-Mismatched placed edges are drawn with a red dotted line (inset 10%, half-width) during play.
+Mismatched edges: red dotted line (inset 10%, half-width) + ✕ mark on a dark disc (colorblind-safe).
 Win condition: every slot filled **and** every shared edge matches **and** all extra constraints pass.
 
 ## Extra constraints (`boardConstraints` in puzzle.ts)
-Generated after `generateSolution()` using the known solution values so they are always satisfiable.
-Targets are read directly from the solution; the seeded RNG picks and shuffles candidates.
+Generated after `generateSolution()` from the known solution — always satisfiable; seeded for reproducibility.
 
-| Kind | Rule | Badge label |
-|------|------|-------------|
-| `sum` (1 slot) | Sum of the 3 corner values = target | target number |
-| `sum` (2 slots) | Sum of all 6 corner values across both adjacent slots = target | target number |
-| `all-different` | All 3 corner values are distinct | `≠` |
-| `all-same` | All 3 corner values are equal | `≡` |
+| Kind | Rule | Badge |
+|------|------|-------|
+| `sum` (1 slot) | Sum of 3 corners = target | number |
+| `sum` (2 slots) | Sum of 6 corners across both adjacent slots = target | number |
+| `all-different` | All 3 corners distinct | `≠` |
+| `all-same` | All 3 corners equal | `≡` |
 
-Count by difficulty: **easy = 1**, **medium = 2**, **hard = 4**.
-Allowed kinds: easy → sum-single only; medium → sum-single, sum-pair, all-different; hard → all.
-
-`generateConstraints(solutionValues, rng)` builds a candidate pool, Fisher-Yates shuffles it,
-then greedily picks non-overlapping constraints (no slot used by two constraints).
-
-**Visual**: constrained slots get a semi-transparent colour tint (28% alpha). A filled circle badge
-(radius `R × 0.22`) sits at the centroid of the slot(s) — midpoint of both centroids for pairs.
-Badge colour: constraint colour while unfilled → green (#22c55e) when satisfied → red (#ef4444) when violated.
-Palette: `CONSTRAINT_COLORS = ['#7c3aed', '#ea580c', '#16a34a', '#0891b2']` (violet, orange, green, cyan).
-
-`constraintSatisfied(c)` returns true if any constrained slot is still empty (no early penalty).
+Count: easy=1, medium=2, hard=4. Kinds: easy→sum-single; medium→sum-single/pair/all-diff; hard→all.
+`CONSTRAINT_COLORS = ['#7c3aed', '#ea580c', '#16a34a', '#0891b2']` (violet, orange, green, cyan).
+Badge turns green (✓) when satisfied, red (✗) when violated (shape+colour, colorblind-safe).
 
 ## Puzzle generation (`generateSolution` in puzzle.ts)
-Backtracking fill (left-to-right, top-to-bottom):
-1. For each slot, shuffle remaining unused pieces from ALL_PIECES, try each with valid rotations
-2. Check at most 2 already-placed neighbours (left + above); commit if constraints pass
-3. Backtrack on failure (rare — 56 pieces, ≤12 slots, ≤2 constraints)
-4. Before shuffling, capture `solutionValues: PieceValues[]` (rotated values per slot) for constraint generation
-5. Shuffle the resulting piece array so tray order doesn't reveal board order
-6. Returns `{ pieces, solutionValues }`; all pieces start at rotation 0 in the tray
+Backtracking fill left-to-right, top-to-bottom:
+1. Shuffle remaining unused pieces, try each with valid rotations
+2. Check ≤2 already-placed neighbours (left + above); commit if adjacency passes
+3. Backtrack on failure; capture `solutionValues[]` for constraint generation
+4. Shuffle piece array so tray order doesn't reveal board order
+Returns `{ pieces, solutionValues }`; all pieces start at rotation 0 in the tray.
 
-This guarantees every daily puzzle is solvable. The seeded RNG makes puzzles reproducible per date+difficulty.
+## Puzzle page state (module-level)
+- `pieces`, `pieceRotation[]`, `boardOccupancy[]`, `boardAdjacentPairs[]`, `boardConstraints[]`
+- `boardShape: { rows, cols }`, `drag: DragState | null`, `solvedMarked: boolean`
 
-## Puzzle page state (module-level, persists across resize)
-- `pieces: PieceValues[]` — set once by `generateSolution()` on load
-- `pieceRotation: number[]` — current rotation (0–5) per piece, all start at 0
-- `boardOccupancy: (number|null)[]` — which pieceIdx is in each board slot (null = empty)
-- `boardAdjacentPairs: AdjacentPair[]` — all internal shared edges, computed once from boardShape
-- `boardConstraints: Constraint[]` — extra constraints generated after solution; checked in `isPuzzleSolved()`
-- `boardShape: { rows, cols }` — set from BOARD_SHAPE_FOR_COUNT[count]
-- `drag: DragState | null` — current drag including `startX/startY` for tap detection
-- `solvedMarked: boolean` — set true once on first valid solve; gates the SOLVED overlay
+## Tray layout (`recomputeLayout` in puzzle.ts)
+Binary search finds the largest `R` where board + tray fits both screen height and width.
+- `minTrayCols`: hard mode = 4 (enforces 4-wide tray so board stays large on small phones)
+- `maxTrayCols = Math.ceil(n / 2)` (caps at half piece count — avoids wide single-row on desktop)
+- Width guard in loop: `if (minTrayCols * cellW > trayAvail) continue`
+- `TRAY_CELL_W_RATIO`: hard=`56/30` (tight), others=`68/30` (more spacing)
 
 ## Difficulty settings
-Piece count is seeded-random within a range; board shape follows from piece count.
+| Difficulty | Count range | Constraints |
+|------------|-------------|-------------|
+| easy       | 4–6         | 1 (sum-single only) |
+| medium     | 7–9         | 2 (sum-single/pair/all-diff) |
+| hard       | 10–12       | 4 (all kinds) |
 
-| Difficulty | Count range | Example board shapes |
-|------------|-------------|----------------------|
-| easy       | 4–6         | 2×2, 1×5, 2×3        |
-| medium     | 7–9         | 1×7, 2×4, 3×3        |
-| hard       | 10–12       | 2×5, 1×11, 3×4       |
-
-`BOARD_SHAPES_FOR_COUNT` maps each count to an array of `{ rows, cols }` options; one is chosen
-randomly via the daily RNG so the board shape varies each day.
+`BOARD_SHAPES_FOR_COUNT` maps count → array of `{ rows, cols }`; one chosen by daily RNG.
 
 ## Interaction
-- **Drag**: `pointerdown` on piece → `pointermove` → `pointerup` snaps to nearest empty slot
+- **Drag**: `pointerdown` → `pointermove` → `pointerup` snaps to nearest empty slot
   - Snap: exact point-in-triangle first, then nearest centroid within 1.2R
-  - Drop on occupied slot → **swap**: dragged piece takes that slot, displaced piece goes to origin slot (or tray)
-  - Drop in tray area (y ≥ boardSectionH) → returns piece to tray
-  - Drop on board with no valid slot → restores to original slot
-- **Tap** (movement < 8px): rotates piece by one step (+1 mod 6), restores to origin slot
-- Both drag-drop and tap call `checkCompletion()` so rotation can trigger the win condition
+  - Drop on occupied slot → swap; drop in tray → return to tray; no valid slot → restore
+  - Snap preview: 40% opacity ghost at target slot while dragging (after 8px movement)
+- **Tap** (movement < 8px): rotates +1 mod 6; both tap and drop call `checkCompletion()`
 
-## What's been built
-- [x] Main page displaying all 56 pieces in a responsive grid
-- [x] Easy/Medium/Hard difficulty nav on main page
-- [x] Puzzle page with triangular board + tray on a single canvas
-- [x] Drag-and-drop between tray and board (and back)
-- [x] Swap pieces by dragging one onto another already-placed piece
-- [x] Tap-to-rotate (6 orientations, 60° each)
-- [x] Star ghost slot in tray when a piece is placed on the board
-- [x] Daily seeded puzzles with localStorage completion tracking
-- [x] Adjacency matching constraint: shared edges between placed pieces must have equal corner values
-- [x] Red dotted highlight on mismatched edges during play (inset 10%, half-width)
-- [x] Backtracking puzzle generator — every daily puzzle is guaranteed solvable
-- [x] Win condition: all slots filled AND all adjacency constraints AND all extra constraints satisfied
-- [x] Random board shape per day — `BOARD_SHAPES_FOR_COUNT` holds multiple options per piece count,
-  selected by the daily RNG (e.g. 2×3, 3×2, or 1×6 for 6-piece easy puzzles)
-- [x] How-to-play card on home page (between nav and piece grid)
-- [x] Pulsing glow animation on difficulty buttons until that difficulty is completed
-- [x] Share button on solved panel — Web Share API on mobile, clipboard fallback on desktop
-- [x] Hidden solve timer — starts on page load, stops on first valid solve
-- [x] Solve time displayed on solved panel ("Solved in 3m 42s") and included in share text
-- [x] Solve time persisted in localStorage — shown correctly when revisiting a completed puzzle
-- [x] `DEV_SKIP_ADJACENCY` flag in puzzle.ts — set to `true` to skip adjacency checks for UI
-- [x] Pause timer when page/puzzle is not active
-- [x] Daily streak count
-- [x] Extra board constraints (sum, all-different, all-same) — 1/2/4 per easy/medium/hard
-  - Generated from solution values so always satisfiable; seeded for daily reproducibility
-  - Coloured tint overlay on affected slots; badge at centroid turns green/red on fill
-  - Constraint rules documented in how-to-play card on home page with matching badge colours
-- [x] Full rules/tutorial page (`rules.html`) — static page linked from home page
-  - Section 1: tile anatomy SVG with corner labels
-  - Section 2: adjacency rule with matching (green) and mismatching (red dotted) SVG examples
-  - Section 3: all 6 rotations of a sample piece in a 3×2 CSS grid
-  - Section 4: extra constraint types with tinted SVG examples and explanatory text
-  - "← Back" link returns to home; "Play today's puzzle" CTA at bottom
-- [x] **Controls discoverability** — hint text "tap to rotate · drag to board" rendered below the tray;
-  shown for the entire first puzzle, then permanently dismissed (localStorage `triominoes-hint-dismissed`)
-  on first puzzle completion so it never causes a mid-puzzle resize; HINT_H (26px) reserved in layout
-- [x] **Home page clarity** — 56-piece grid collapsed behind a `<details>` toggle ("All 56 tiles ▾");
-  canvas renders lazily on first open; play buttons are the visual hero on load
-- [x] **Drag snap preview** — while dragging (after 8px movement), the piece is drawn at 40% opacity
-  at the current snap target slot (same logic as drop: exact hit then nearest centroid ≤ 1.2R),
-  with rotation auto-adapted to the slot's orientation
-- [x] **Colorblind accessibility** — mismatch edges: ✕ mark drawn at edge midpoint on a dark backing
-  disc; constraint badges: label swaps to ✓ / ✗ when all constrained slots are filled (shape-based,
-  colour is now a secondary signal)
-- [x] **Share text** — updated to `🔺 Triominoes · 26 Feb\nSolved Easy in 3m 42s — can you beat it?`;
-  names the game, includes the date for urgency, and has a competitive hook for cold readers
-- [x] **In-game constraint legend** — first-encounter tooltip card shown at top of board; lists each badge
-  with its color and a plain-English description; dismissed via "Got it"; persisted in localStorage
-  (`triominoes-constraint-tip-v1`); hidden under the ready-overlay (z-index 5 vs 10)
-- [x] **Streak-ended state** — when a streak resets after  
-  a missed day show a brief message ("Streak ended")
-  rather than silently dropping to 0
-- [x] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the home screen and works offline; high value for a mobile-first daily game
-
-## What's planned next
-Ordered by impact on new-user experience:
-- [ ] support light and dark mode (toggle top right on home page)
+## Key localStorage keys
+| Key | Value |
+|-----|-------|
+| `triominoes-daily-v1` | per-difficulty: `true` (legacy) or `number` (solve time ms) |
+| `triominoes-theme` | `'light'` \| `'dark'` \| null (device default) |
+| `triominoes-hint-dismissed` | present = hint permanently hidden |
+| `triominoes-constraint-tip-v1` | present = in-game constraint legend dismissed |
+| `triominoes-streak-v1` | streak state JSON |
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)
-- `touch-action: none` on `#puzzle-canvas` (drag); `touch-action: pan-y` on `#board` (main page scroll)
-- Canvas dimensions are set in JS (`canvas.width/height`), not CSS
-- Resize handler is width-only (ignores height-only changes, e.g. mobile keyboard)
+- `touch-action: none` on `#puzzle-canvas`; `touch-action: pan-y` on `#board` (modal scroll)
+- Canvas `width`/`height` set in JS, not CSS
+- Resize handler ignores height-only changes (mobile keyboard)
+
+## Dev flags (puzzle.ts)
+- `DEV_MODE` — shows dev banner and Reset button (clears progress, theme, increments date offset)
+- `DEV_SKIP_ADJACENCY` — set `true` to bypass adjacency checks for UI testing; **never commit as true**
+
+## What's been built
+- [x] Full puzzle game: board, tray, drag-and-drop, tap-to-rotate, swap, adjacency matching
+- [x] Backtracking generator — every puzzle guaranteed solvable; seeded daily RNG
+- [x] Extra constraints (sum, all-different, all-same) with colour tint + badge UI
+- [x] In-game constraint legend (first-encounter tooltip, dismissed on "Got it")
+- [x] Win condition, solved overlay, solve timer, share button (Web Share + clipboard fallback)
+- [x] Solve time persisted — shown on revisit; share text includes date + competitive hook
+- [x] Daily streak with "streak ended" state after missed day
+- [x] Random board shape per day (BOARD_SHAPES_FOR_COUNT)
+- [x] Hard mode: 4-wide tray minimum, tight horizontal spacing, binary search with width guard
+- [x] Max ceil(n/2) tray columns — avoids single-row on wide/desktop screens
+- [x] Controls hint ("tap to rotate · drag to board") — shown first puzzle, dismissed on solve
+- [x] Drag snap preview (40% ghost at target slot)
+- [x] Colorblind-safe mismatch markers (✕ disc + ✓/✗ badge labels)
+- [x] Full rules/tutorial page (rules.html) — SVG diagrams, all 6 rotations, constraint examples
+- [x] "View all 56 tiles" modal (lazy-rendered, re-renders on theme change or re-open)
+- [x] Light / dark mode toggle — CSS variables, getPalette() for canvas, anti-flash inline script,
+  localStorage + device preference default; applied across all pages and canvases
+- [x] "Developed by Jheps Games" footer (fixed bottom-right, links to jheps-games site)
+- [x] PWA support — manifest.json + service worker for home-screen install and offline use
+- [x] Daily completion badges on difficulty buttons (pulsing glow until completed)
+- [x] Pause timer when page is not active
+
+## What's planned next
+- [ ] Leaderboard or social comparison (e.g. "X% solved Hard today")
+- [ ] Difficulty-specific colour themes or icons for stronger visual distinction
+- [ ] Onboarding tutorial / guided first puzzle for new users

@@ -16,6 +16,15 @@
 
   // src/draw.ts
   var TEXT_FRAC = 0.42;
+  function getPalette() {
+    const light = document.documentElement.classList.contains("light");
+    return {
+      canvasBg: light ? "#e8eef8" : "#16213e",
+      slotFill: light ? "#c8d5e8" : "#1e2d50",
+      slotStroke: light ? "#4a6595" : "#5577aa",
+      solvedOverlay: light ? "rgba(220,228,242,0.85)" : "rgba(22,33,62,0.78)"
+    };
+  }
   function triVertices(cx, cy, r, up) {
     const start = up ? -Math.PI / 2 : Math.PI / 2;
     return [0, 1, 2].map((i) => [
@@ -183,7 +192,7 @@
     const layout = computeGridLayout(ALL_PIECES.length);
     canvas.width = layout.canvasW;
     canvas.height = layout.canvasH;
-    ctx.fillStyle = "#16213e";
+    ctx.fillStyle = getPalette().canvasBg;
     ctx.fillRect(0, 0, layout.canvasW, layout.canvasH);
     ALL_PIECES.forEach((piece, i) => {
       const col = i % layout.cols;
@@ -222,6 +231,33 @@
     tick();
     setInterval(tick, 1e3);
   }
+  var THEME_KEY = "triominoes-theme";
+  function applyTheme(light) {
+    document.documentElement.classList.toggle("light", light);
+    const btn = document.getElementById("theme-toggle");
+    if (btn)
+      btn.textContent = light ? "\u263E" : "\u2600";
+  }
+  function initTheme() {
+    const stored = localStorage.getItem(THEME_KEY);
+    const isLight = stored === "light" || stored === null && window.matchMedia("(prefers-color-scheme: light)").matches;
+    applyTheme(isLight);
+    const btn = document.getElementById("theme-toggle");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        const nowLight = !document.documentElement.classList.contains("light");
+        localStorage.setItem(THEME_KEY, nowLight ? "light" : "dark");
+        applyTheme(nowLight);
+        const modal = document.getElementById("tile-modal");
+        const canvas = document.getElementById("board");
+        if (modal && !modal.hidden && canvas) {
+          const ctx = canvas.getContext("2d");
+          if (ctx)
+            render(canvas, ctx);
+        }
+      });
+    }
+  }
   function init() {
     const canvas = document.getElementById("board");
     const modal = document.getElementById("tile-modal");
@@ -233,16 +269,9 @@
     const ctx = canvas.getContext("2d");
     if (!ctx)
       return;
-    let rendered = false;
-    function renderOnce() {
-      if (!rendered) {
-        render(canvas, ctx);
-        rendered = true;
-      }
-    }
     if (tileBtn && modal) {
       tileBtn.addEventListener("click", () => {
-        renderOnce();
+        render(canvas, ctx);
         modal.hidden = false;
       });
       modal.addEventListener("click", () => {
@@ -253,6 +282,7 @@
       if (e.key === "Escape" && modal)
         modal.hidden = true;
     });
+    initTheme();
     updateButtonStates();
     startCountdown();
     const { streak, completedToday, streakEnded } = getStreakData();
@@ -293,6 +323,7 @@
         resetStreak();
         localStorage.removeItem("triominoes-hint-dismissed");
         localStorage.removeItem("triominoes-constraint-tip-v1");
+        localStorage.removeItem(THEME_KEY);
         incrementDevOffset();
         window.location.reload();
       });
