@@ -25,7 +25,7 @@
       <a href="puzzle.html?d=medium" id="btn-medium" class="btn btn-medium">Medium</a>
       <a href="puzzle.html?d=hard"   id="btn-hard"   class="btn btn-hard">Hard</a>
     </nav>
-    <p class="next-puzzle">Next daily puzzle in <span id="countdown">--:--:--</span><button id="reset-btn" hidden>↺ Reset</button></p>
+    <p class="next-puzzle">Next daily puzzle in <span id="countdown">--:--:--</span></p>
   </header>
 
   <section class="how-to-play">
@@ -36,7 +36,7 @@
       <li>Where two tiles share an edge, <strong>both corner values must match</strong></li>
       <li><strong>Drag</strong> a tile onto the board · <strong>Tap</strong> to rotate it</li>
       <li>Tinted tiles have <strong>extra constraints</strong> — shown by a badge:</li>
-      <li class="constraint-example"><span class="constraint-badge" style="--badge-color:#7c3aed">9</span> corners must <strong>sum</strong> to that number (one or two tiles)</li>
+      <li class="constraint-example"><span class="constraint-badge" style="--badge-color:#7c3aed">9</span> corners must <strong>sum</strong> to that number</li>
       <li class="constraint-example"><span class="constraint-badge" style="--badge-color:#ea580c">≠</span> all three corners must be <strong>different</strong></li>
       <li class="constraint-example"><span class="constraint-badge" style="--badge-color:#16a34a">≡</span> all three corners must be <strong>equal</strong></li>
     </ul>
@@ -48,6 +48,10 @@
     <canvas id="board"></canvas>
     <p class="tile-modal__hint">tap anywhere to close</p>
   </div>
+
+  <footer class="site-footer">
+    <a href="https://sites.google.com/view/jheps-games/home" target="_blank" rel="noopener" class="site-footer__link">Developed by Jheps Games</a>
+  </footer>
 
   <script src="main.js"></script>
   <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>

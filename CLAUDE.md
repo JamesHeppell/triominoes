@@ -189,11 +189,11 @@ randomly via the daily RNG so the board shape varies each day.
 - [x] **Streak-ended state** — when a streak resets after  
   a missed day show a brief message ("Streak ended")
   rather than silently dropping to 0
+- [x] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the home screen and works offline; high value for a mobile-first daily game
 
 ## What's planned next
 Ordered by impact on new-user experience:
-- [ ] **PWA support** — add `manifest.json` + a minimal service worker so the app can be installed to the home screen and works offline; high value for a mobile-first daily game
-- [ ] support light and dark mode
+- [ ] support light and dark mode (toggle top right on home page)
 
 ## CSS / layout notes
 - `BODY_MARGIN = 16` in puzzle.ts must match `padding: 1rem 8px` in style.css (8px × 2 sides)

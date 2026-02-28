@@ -35,15 +35,6 @@ function updateButtonStates(): void {
     }
   });
 
-  const allDone = difficulties.every(d => isDailyComplete(dateKey, d));
-  const resetBtn = document.getElementById("reset-btn") as HTMLButtonElement | null;
-  if (resetBtn) {
-    resetBtn.hidden = !allDone;
-    resetBtn.addEventListener("click", () => {
-      resetDailyProgress(dateKey);
-      window.location.reload();
-    });
-  }
 }
 
 function startCountdown(): void {

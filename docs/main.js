@@ -202,15 +202,6 @@
         btn.classList.add("btn-completed");
       }
     });
-    const allDone = difficulties.every((d) => isDailyComplete(dateKey, d));
-    const resetBtn = document.getElementById("reset-btn");
-    if (resetBtn) {
-      resetBtn.hidden = !allDone;
-      resetBtn.addEventListener("click", () => {
-        resetDailyProgress(dateKey);
-        window.location.reload();
-      });
-    }
   }
   function startCountdown() {
     const el = document.getElementById("countdown");

@@ -449,20 +449,27 @@ function recomputeLayout(availH: number): void {
     (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2))
   );
 
-  // Tray cell size: piece bounding box + half the original gap (~half the original spacing).
-  // Original was 84/30 wide, 78/30 tall; piece itself is √3 ≈ 1.732 wide, 1.5 tall (× R/30).
-  // Half-gap gives ≈ 68/30 wide, 62/30 tall — tighter packing frees more room for the board.
-  const TRAY_CELL_W_RATIO = 68 / 30;
+  // Tray cell size: piece bounding box + gap (× R/30).
+  // Piece itself is √3 ≈ 1.732 wide, 1.5 tall. Hard mode uses a tighter horizontal ratio
+  // (56/30 ≈ 1.867 — just a sliver of gap each side) so 4 cols fit at a larger R,
+  // which lets both pieces and the board be bigger on small screens.
+  const TRAY_CELL_W_RATIO = currentDifficulty === 'hard' ? 56 / 30 : 68 / 30;
   const TRAY_CELL_H_RATIO = 62 / 30;
 
   const hintReserve = hintDismissed ? 0 : HINT_H;
+
+  // Hard mode: enforce at least 4 tray columns so the board gets more space
+  const minTrayCols = currentDifficulty === 'hard' ? 4 : 1;
 
   let bestR = 10;
   for (let r = rFromWidth; r >= 10; r--) {
     const boardH  = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
     const cellW   = r * TRAY_CELL_W_RATIO;
     const cellH   = r * TRAY_CELL_H_RATIO;
-    const tCols   = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / cellW)));
+    const trayAvail = available - TRAY_PAD * 2;
+    // If minTrayCols can't fit horizontally at this R, keep shrinking
+    if (minTrayCols * cellW > trayAvail) continue;
+    const tCols   = Math.max(minTrayCols, Math.min(n, Math.floor(trayAvail / cellW)));
     const tRows   = Math.ceil(n / tCols);
     const totalH  = boardH + DIVIDER_H + 2 * TRAY_PAD + tRows * cellH + hintReserve;
     if (totalH <= availH) { bestR = r; break; }
@@ -475,7 +482,8 @@ function recomputeLayout(availH: number): void {
   // ── Tray dimensions (computed before allocating board section height) ───────
   const CELL_W = R * TRAY_CELL_W_RATIO;
   const CELL_H = R * TRAY_CELL_H_RATIO;
-  const trayCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / CELL_W)));
+  const trayAvailFinal = available - TRAY_PAD * 2;
+  const trayCols = Math.max(minTrayCols, Math.min(n, Math.floor(trayAvailFinal / CELL_W)));
   const trayRows = Math.ceil(n / trayCols);
   const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H + hintReserve;
 

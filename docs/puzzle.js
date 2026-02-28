@@ -464,15 +464,19 @@
     const rFromWidth = Math.floor(
       (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2))
     );
-    const TRAY_CELL_W_RATIO = 68 / 30;
+    const TRAY_CELL_W_RATIO = currentDifficulty === "hard" ? 56 / 30 : 68 / 30;
     const TRAY_CELL_H_RATIO = 62 / 30;
     const hintReserve = hintDismissed ? 0 : HINT_H;
+    const minTrayCols = currentDifficulty === "hard" ? 4 : 1;
     let bestR = 10;
     for (let r = rFromWidth; r >= 10; r--) {
       const boardH = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
       const cellW = r * TRAY_CELL_W_RATIO;
       const cellH = r * TRAY_CELL_H_RATIO;
-      const tCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / cellW)));
+      const trayAvail = available - TRAY_PAD * 2;
+      if (minTrayCols * cellW > trayAvail)
+        continue;
+      const tCols = Math.max(minTrayCols, Math.min(n, Math.floor(trayAvail / cellW)));
       const tRows = Math.ceil(n / tCols);
       const totalH = boardH + DIVIDER_H + 2 * TRAY_PAD + tRows * cellH + hintReserve;
       if (totalH <= availH) {
@@ -484,7 +488,8 @@
     R = bl.r;
     const CELL_W = R * TRAY_CELL_W_RATIO;
     const CELL_H = R * TRAY_CELL_H_RATIO;
-    const trayCols = Math.max(1, Math.min(n, Math.floor((available - TRAY_PAD * 2) / CELL_W)));
+    const trayAvailFinal = available - TRAY_PAD * 2;
+    const trayCols = Math.max(minTrayCols, Math.min(n, Math.floor(trayAvailFinal / CELL_W)));
     const trayRows = Math.ceil(n / trayCols);
     const trayContentH = 2 * TRAY_PAD + trayRows * CELL_H + hintReserve;
     const minContentH = Math.round(rows * bl.h + 2 * BOARD_PAD_Y + DIVIDER_H + trayContentH);
