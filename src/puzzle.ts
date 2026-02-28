@@ -598,7 +598,7 @@ function render(ctx: CanvasRenderingContext2D): void {
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.max(7, Math.round(R * 0.18))}px sans-serif`;
+    ctx.font = `bold ${Math.round(badgeR * 1.3)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, bx, by);
@@ -685,7 +685,11 @@ function render(ctx: CanvasRenderingContext2D): void {
 
     // ── Snap preview ghost ────────────────────────────────────────────────────
     if (drag && Math.hypot(drag.x - drag.startX, drag.y - drag.startY) >= 8) {
-      const ghostSlot = snapTarget(drag.x, drag.y);
+      // Mirror the drop logic: occupied slots take priority (exact hit), then empty slots
+      const swapSlot  = hitOccupiedBoard(drag.x, drag.y);
+      const emptySlot = swapSlot === -1 ? snapTarget(drag.x, drag.y) : -1;
+      const ghostSlot = swapSlot !== -1 ? swapSlot : emptySlot;
+
       if (ghostSlot !== -1) {
         const { cx, cy, up } = boardSlotPos[ghostSlot];
         let ghostRot = pieceRotation[drag.pieceIdx];
@@ -694,6 +698,29 @@ function render(ctx: CanvasRenderingContext2D): void {
         ctx.globalAlpha = 0.4;
         drawPiece(ctx, cx, cy, R, rotatedValues(pieces[drag.pieceIdx], ghostRot), up);
         ctx.restore();
+
+        // ── Swap badge — shown when hovering an occupied slot ─────────────
+        if (swapSlot !== -1) {
+          const apexY = up ? cy - R : cy + R;
+          const br = Math.max(7, Math.round(R * 0.22));
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.3)';
+          ctx.shadowBlur = 4;
+          ctx.beginPath();
+          ctx.arc(cx, apexY, br, 0, Math.PI * 2);
+          ctx.fillStyle = '#f97316';
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `bold ${Math.round(br * 1.25)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⇄', cx, apexY);
+          ctx.restore();
+        }
       }
     }
 
