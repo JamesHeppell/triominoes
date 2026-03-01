@@ -685,11 +685,7 @@ function render(ctx: CanvasRenderingContext2D): void {
 
     // ── Snap preview ghost ────────────────────────────────────────────────────
     if (drag && Math.hypot(drag.x - drag.startX, drag.y - drag.startY) >= 8) {
-      // Mirror the drop logic: occupied slots take priority (exact hit), then empty slots
-      const swapSlot  = hitOccupiedBoard(drag.x, drag.y);
-      const emptySlot = swapSlot === -1 ? snapTarget(drag.x, drag.y) : -1;
-      const ghostSlot = swapSlot !== -1 ? swapSlot : emptySlot;
-
+      const ghostSlot = snapTarget(drag.x, drag.y);
       if (ghostSlot !== -1) {
         const { cx, cy, up } = boardSlotPos[ghostSlot];
         let ghostRot = pieceRotation[drag.pieceIdx];
@@ -698,29 +694,6 @@ function render(ctx: CanvasRenderingContext2D): void {
         ctx.globalAlpha = 0.4;
         drawPiece(ctx, cx, cy, R, rotatedValues(pieces[drag.pieceIdx], ghostRot), up);
         ctx.restore();
-
-        // ── Swap badge — shown when hovering an occupied slot ─────────────
-        if (swapSlot !== -1) {
-          const apexY = up ? cy - R : cy + R;
-          const br = Math.max(7, Math.round(R * 0.22));
-          ctx.save();
-          ctx.shadowColor = 'rgba(0,0,0,0.3)';
-          ctx.shadowBlur = 4;
-          ctx.beginPath();
-          ctx.arc(cx, apexY, br, 0, Math.PI * 2);
-          ctx.fillStyle = '#f97316';
-          ctx.fill();
-          ctx.shadowBlur = 0;
-          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-          ctx.fillStyle = '#ffffff';
-          ctx.font = `bold ${Math.round(br * 1.25)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('⇄', cx, apexY);
-          ctx.restore();
-        }
       }
     }
 
@@ -779,16 +752,6 @@ function hitTray(x: number, y: number): number {
     // Check both orientations — slot renders as a star (▲ + ▽)
     if (pointInTriangle(x, y, triVertices(cx, cy, R, true))) return i;
     if (pointInTriangle(x, y, triVertices(cx, cy, R, false))) return i;
-  }
-  return -1;
-}
-
-/** Occupied board slot index at exact canvas point, or -1. */
-function hitOccupiedBoard(x: number, y: number): number {
-  for (let i = 0; i < boardSlotPos.length; i++) {
-    if (boardOccupancy[i] === null) continue;
-    const { cx, cy, up } = boardSlotPos[i];
-    if (pointInTriangle(x, y, triVertices(cx, cy, R, up))) return i;
   }
   return -1;
 }
@@ -869,41 +832,21 @@ function attachPointerEvents(
       return;
     }
 
-    const swapSlot = hitOccupiedBoard(x, y);
-    if (swapSlot !== -1) {
-      // Swap: place dragged piece in the occupied slot, displace the other piece
-      const displacedIdx = boardOccupancy[swapSlot]!;
-      const slotUp = boardSlotPos[swapSlot].up;
+    const target = snapTarget(x, y);
+    if (target !== -1) {
+      // Auto-adapt rotation to match the slot's up/down orientation
+      const slotUp = boardSlotPos[target].up;
       if (rotationIsUp(pieceRotation[pieceIdx]) !== slotUp) {
         pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 3) % 6;
       }
-      boardOccupancy[swapSlot] = pieceIdx;
-      if (fromBoard !== null) {
-        // Adapt displaced piece's rotation to match the origin slot's orientation
-        const fromUp = boardSlotPos[fromBoard].up;
-        if (rotationIsUp(pieceRotation[displacedIdx]) !== fromUp) {
-          pieceRotation[displacedIdx] = (pieceRotation[displacedIdx] + 3) % 6;
-        }
-        boardOccupancy[fromBoard] = displacedIdx;
-      }
-      // else: dragged from tray — displaced piece simply returns to tray
-    } else {
-      const target = snapTarget(x, y);
-      if (target !== -1) {
-        // Auto-adapt rotation to match the slot's up/down orientation
-        const slotUp = boardSlotPos[target].up;
-        if (rotationIsUp(pieceRotation[pieceIdx]) !== slotUp) {
-          pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 3) % 6;
-        }
-        boardOccupancy[target] = pieceIdx;
-      } else if (y >= boardSectionH) {
-        // Dropped anywhere in the tray area → return piece to its tray home.
-      } else if (fromBoard !== null) {
-        // Dropped on the board area but no valid slot → restore to original slot
-        boardOccupancy[fromBoard] = pieceIdx;
-      }
-      // else: lifted from tray, dropped on board with no valid slot → back to tray
+      boardOccupancy[target] = pieceIdx;
+    } else if (y >= boardSectionH) {
+      // Dropped anywhere in the tray area → return piece to its tray home.
+    } else if (fromBoard !== null) {
+      // Dropped on the board area but no valid slot → restore to original slot
+      boardOccupancy[fromBoard] = pieceIdx;
     }
+    // else: lifted from tray, dropped on board with no valid slot → back to tray
 
     checkCompletion();
     render(ctx);
@@ -1081,6 +1024,9 @@ function init(): void {
     banner.textContent = "DEV MODE";
     document.body.appendChild(banner);
   }
+
+  // Best-effort portrait lock — works on Android Chrome PWA; silently ignored elsewhere
+  (screen.orientation as any)?.lock?.("portrait").catch(() => {});
 
   const params = new URLSearchParams(window.location.search);
   const difficulty = (params.get("d") ?? "easy") as Difficulty;

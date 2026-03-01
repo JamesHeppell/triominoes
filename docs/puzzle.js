@@ -656,9 +656,7 @@
         ctx.fillText("tap to rotate  \xB7  drag to board", canvasW / 2, hintY);
       }
       if (drag && Math.hypot(drag.x - drag.startX, drag.y - drag.startY) >= 8) {
-        const swapSlot = hitOccupiedBoard(drag.x, drag.y);
-        const emptySlot = swapSlot === -1 ? snapTarget(drag.x, drag.y) : -1;
-        const ghostSlot = swapSlot !== -1 ? swapSlot : emptySlot;
+        const ghostSlot = snapTarget(drag.x, drag.y);
         if (ghostSlot !== -1) {
           const { cx, cy, up } = boardSlotPos[ghostSlot];
           let ghostRot = pieceRotation[drag.pieceIdx];
@@ -668,27 +666,6 @@
           ctx.globalAlpha = 0.4;
           drawPiece(ctx, cx, cy, R, rotatedValues(pieces[drag.pieceIdx], ghostRot), up);
           ctx.restore();
-          if (swapSlot !== -1) {
-            const apexY = up ? cy - R : cy + R;
-            const br = Math.max(7, Math.round(R * 0.22));
-            ctx.save();
-            ctx.shadowColor = "rgba(0,0,0,0.3)";
-            ctx.shadowBlur = 4;
-            ctx.beginPath();
-            ctx.arc(cx, apexY, br, 0, Math.PI * 2);
-            ctx.fillStyle = "#f97316";
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = "rgba(255,255,255,0.6)";
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            ctx.fillStyle = "#ffffff";
-            ctx.font = `bold ${Math.round(br * 1.25)}px sans-serif`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("\u21C4", cx, apexY);
-            ctx.restore();
-          }
         }
       }
       if (drag) {
@@ -739,16 +716,6 @@
       if (pointInTriangle(x, y, triVertices(cx, cy, R, true)))
         return i;
       if (pointInTriangle(x, y, triVertices(cx, cy, R, false)))
-        return i;
-    }
-    return -1;
-  }
-  function hitOccupiedBoard(x, y) {
-    for (let i = 0; i < boardSlotPos.length; i++) {
-      if (boardOccupancy[i] === null)
-        continue;
-      const { cx, cy, up } = boardSlotPos[i];
-      if (pointInTriangle(x, y, triVertices(cx, cy, R, up)))
         return i;
     }
     return -1;
@@ -817,33 +784,16 @@
         render(ctx);
         return;
       }
-      const swapSlot = hitOccupiedBoard(x, y);
-      if (swapSlot !== -1) {
-        const displacedIdx = boardOccupancy[swapSlot];
-        const slotUp = boardSlotPos[swapSlot].up;
+      const target = snapTarget(x, y);
+      if (target !== -1) {
+        const slotUp = boardSlotPos[target].up;
         if (rotationIsUp(pieceRotation[pieceIdx]) !== slotUp) {
           pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 3) % 6;
         }
-        boardOccupancy[swapSlot] = pieceIdx;
-        if (fromBoard !== null) {
-          const fromUp = boardSlotPos[fromBoard].up;
-          if (rotationIsUp(pieceRotation[displacedIdx]) !== fromUp) {
-            pieceRotation[displacedIdx] = (pieceRotation[displacedIdx] + 3) % 6;
-          }
-          boardOccupancy[fromBoard] = displacedIdx;
-        }
-      } else {
-        const target = snapTarget(x, y);
-        if (target !== -1) {
-          const slotUp = boardSlotPos[target].up;
-          if (rotationIsUp(pieceRotation[pieceIdx]) !== slotUp) {
-            pieceRotation[pieceIdx] = (pieceRotation[pieceIdx] + 3) % 6;
-          }
-          boardOccupancy[target] = pieceIdx;
-        } else if (y >= boardSectionH) {
-        } else if (fromBoard !== null) {
-          boardOccupancy[fromBoard] = pieceIdx;
-        }
+        boardOccupancy[target] = pieceIdx;
+      } else if (y >= boardSectionH) {
+      } else if (fromBoard !== null) {
+        boardOccupancy[fromBoard] = pieceIdx;
       }
       checkCompletion();
       render(ctx);
@@ -996,6 +946,8 @@
       banner.textContent = "DEV MODE";
       document.body.appendChild(banner);
     }
+    screen.orientation?.lock?.("portrait").catch(() => {
+    });
     const params = new URLSearchParams(window.location.search);
     const difficulty = params.get("d") ?? "easy";
     const titleEl = document.getElementById("puzzle-title");

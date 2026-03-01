@@ -56,6 +56,7 @@ body {
   /* 8px horizontal padding each side — matched by BODY_MARGIN = 16 in layout.ts */
   padding: 1rem 8px;
   overflow-x: hidden;
+  touch-action: manipulation;
 }
 
 /* ── Main page header ─────────────────────────────────────────────────────── */
@@ -791,4 +792,41 @@ main {
 .site-footer__link:hover {
   opacity: 1;
   color: var(--accent);
+}
+
+/* ── Landscape / rotate prompt ───────────────────────────────────────────── */
+
+.rotate-prompt {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+.rotate-prompt__icon {
+  font-size: 3.5rem;
+  animation: rotate-hint 2.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes rotate-hint {
+  0%, 30%  { transform: rotate(0deg); }
+  60%, 90% { transform: rotate(90deg); }
+  100%     { transform: rotate(0deg); }
+}
+
+.rotate-prompt__text {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* Only block the puzzle page on phones held landscape (height ≤ 500px) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .rotate-prompt { display: flex; }
 }
