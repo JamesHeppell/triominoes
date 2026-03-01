@@ -24,7 +24,7 @@ The puzzle is solved when every slot is filled, every shared edge matches, and a
 - **Daily puzzles** — three difficulty levels (Easy / Medium / Hard), new puzzles every day
 - **Guaranteed solvable** — backtracking generator with seeded daily RNG
 - **Extra constraints** — sum, all-different, and all-same rules add an extra layer of challenge on harder difficulties
-- **Drag & drop** with snap-to-slot, swap between slots, and a ghost preview while dragging
+- **Drag & drop** with snap-to-slot and a ghost preview while dragging
 - **Tap to rotate** — cycles through all 6 orientations
 - **Solve timer** — tracks and persists your solve time; included in the share text
 - **Daily streak** tracking
