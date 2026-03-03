@@ -74,6 +74,7 @@ let solveTimeMs: number | null = null;
 
 // Layout – recomputed on resize (positions only, never touches occupancy)
 let R = 30;
+let trayR = 22; // Tray piece circumradius = R * TRAY_SCALE; set in recomputeLayout
 let canvasW = 400;
 let canvasH = 400;
 let boardSectionH = 0;
@@ -449,7 +450,10 @@ function recomputeLayout(availH: number): void {
     (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2))
   );
 
-  // Tray cell size: piece bounding box + gap (× R/30).
+  // Tray pieces are rendered at 3/4 of the board R so the board can occupy more space.
+  const TRAY_SCALE = 0.75;
+
+  // Tray cell size: piece bounding box + gap (× trayR/30).
   // Piece itself is √3 ≈ 1.732 wide, 1.5 tall. Hard mode uses a tighter horizontal ratio
   // (56/30 ≈ 1.867 — just a sliver of gap each side) so 4 cols fit at a larger R,
   // which lets both pieces and the board be bigger on small screens.
@@ -468,8 +472,8 @@ function recomputeLayout(availH: number): void {
   let bestR = 10;
   for (let r = rFromWidth; r >= 10; r--) {
     const boardH  = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
-    const cellW   = r * TRAY_CELL_W_RATIO;
-    const cellH   = r * TRAY_CELL_H_RATIO;
+    const cellW   = r * TRAY_SCALE * TRAY_CELL_W_RATIO;
+    const cellH   = r * TRAY_SCALE * TRAY_CELL_H_RATIO;
     const trayAvail = available - TRAY_PAD * 2;
     // If minTrayCols can't fit horizontally at this R, keep shrinking
     if (minTrayCols * cellW > trayAvail) continue;
@@ -482,10 +486,11 @@ function recomputeLayout(availH: number): void {
   // ── Board metrics ──────────────────────────────────────────────────────────
   const bl = computeBoardLayout(rows, cols, bestR);
   R = bl.r;
+  trayR = Math.round(R * TRAY_SCALE);
 
   // ── Tray dimensions (computed before allocating board section height) ───────
-  const CELL_W = R * TRAY_CELL_W_RATIO;
-  const CELL_H = R * TRAY_CELL_H_RATIO;
+  const CELL_W = trayR * TRAY_CELL_W_RATIO;
+  const CELL_H = trayR * TRAY_CELL_H_RATIO;
   const trayAvailFinal = available - TRAY_PAD * 2;
   const trayCols = Math.max(minTrayCols, Math.min(maxTrayCols, Math.floor(trayAvailFinal / CELL_W)));
   const trayRows = Math.ceil(n / trayCols);
@@ -668,9 +673,9 @@ function render(ctx: CanvasRenderingContext2D): void {
       const isDragging = drag?.pieceIdx === i;
 
       if (!isOnBoard && !isDragging) {
-        drawPiece(ctx, cx, cy, R, rotatedValues(pieces[i], pieceRotation[i]), rotationIsUp(pieceRotation[i]));
+        drawPiece(ctx, cx, cy, trayR, rotatedValues(pieces[i], pieceRotation[i]), rotationIsUp(pieceRotation[i]));
       } else {
-        drawStarSlot(ctx, cx, cy, R);
+        drawStarSlot(ctx, cx, cy, trayR);
       }
     }
 
@@ -750,8 +755,8 @@ function hitTray(x: number, y: number): number {
     if (drag?.pieceIdx === i) continue;
     const { cx, cy } = traySlotPos[i];
     // Check both orientations — slot renders as a star (▲ + ▽)
-    if (pointInTriangle(x, y, triVertices(cx, cy, R, true))) return i;
-    if (pointInTriangle(x, y, triVertices(cx, cy, R, false))) return i;
+    if (pointInTriangle(x, y, triVertices(cx, cy, trayR, true))) return i;
+    if (pointInTriangle(x, y, triVertices(cx, cy, trayR, false))) return i;
   }
   return -1;
 }

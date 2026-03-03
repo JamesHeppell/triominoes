@@ -249,6 +249,7 @@
   var timerActiveStart = null;
   var solveTimeMs = null;
   var R = 30;
+  var trayR = 22;
   var canvasW = 400;
   var canvasH = 400;
   var boardSectionH = 0;
@@ -475,6 +476,7 @@
     const rFromWidth = Math.floor(
       (available - 2 * BOARD_PAD_X) / ((cols + 1) * (Math.sqrt(3) / 2))
     );
+    const TRAY_SCALE = 0.75;
     const TRAY_CELL_W_RATIO = currentDifficulty === "hard" ? 56 / 30 : 68 / 30;
     const TRAY_CELL_H_RATIO = 62 / 30;
     const hintReserve = hintDismissed ? 0 : HINT_H;
@@ -483,8 +485,8 @@
     let bestR = 10;
     for (let r = rFromWidth; r >= 10; r--) {
       const boardH = Math.round(rows * 1.5 * r + 2 * BOARD_PAD_Y);
-      const cellW = r * TRAY_CELL_W_RATIO;
-      const cellH = r * TRAY_CELL_H_RATIO;
+      const cellW = r * TRAY_SCALE * TRAY_CELL_W_RATIO;
+      const cellH = r * TRAY_SCALE * TRAY_CELL_H_RATIO;
       const trayAvail = available - TRAY_PAD * 2;
       if (minTrayCols * cellW > trayAvail)
         continue;
@@ -498,8 +500,9 @@
     }
     const bl = computeBoardLayout(rows, cols, bestR);
     R = bl.r;
-    const CELL_W = R * TRAY_CELL_W_RATIO;
-    const CELL_H = R * TRAY_CELL_H_RATIO;
+    trayR = Math.round(R * TRAY_SCALE);
+    const CELL_W = trayR * TRAY_CELL_W_RATIO;
+    const CELL_H = trayR * TRAY_CELL_H_RATIO;
     const trayAvailFinal = available - TRAY_PAD * 2;
     const trayCols = Math.max(minTrayCols, Math.min(maxTrayCols, Math.floor(trayAvailFinal / CELL_W)));
     const trayRows = Math.ceil(n / trayCols);
@@ -643,9 +646,9 @@
         const isOnBoard = boardOccupancy.some((p) => p === i);
         const isDragging = drag?.pieceIdx === i;
         if (!isOnBoard && !isDragging) {
-          drawPiece(ctx, cx, cy, R, rotatedValues(pieces[i], pieceRotation[i]), rotationIsUp(pieceRotation[i]));
+          drawPiece(ctx, cx, cy, trayR, rotatedValues(pieces[i], pieceRotation[i]), rotationIsUp(pieceRotation[i]));
         } else {
-          drawStarSlot(ctx, cx, cy, R);
+          drawStarSlot(ctx, cx, cy, trayR);
         }
       }
       if (!hintDismissed) {
@@ -713,9 +716,9 @@
       if (drag?.pieceIdx === i)
         continue;
       const { cx, cy } = traySlotPos[i];
-      if (pointInTriangle(x, y, triVertices(cx, cy, R, true)))
+      if (pointInTriangle(x, y, triVertices(cx, cy, trayR, true)))
         return i;
-      if (pointInTriangle(x, y, triVertices(cx, cy, R, false)))
+      if (pointInTriangle(x, y, triVertices(cx, cy, trayR, false)))
         return i;
     }
     return -1;
