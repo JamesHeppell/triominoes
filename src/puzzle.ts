@@ -603,10 +603,13 @@ function render(ctx: CanvasRenderingContext2D): void {
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(badgeR * 1.3)}px sans-serif`;
+    const isSymbol = label === '≠' || label === '≡';
+    ctx.font = `bold ${Math.round(badgeR * (isSymbol ? 1.6 : 1.3))}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, bx, by);
+    ctx.textBaseline = 'alphabetic';
+    const m = ctx.measureText(label);
+    const labelY = by + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+    ctx.fillText(label, bx, labelY);
     ctx.restore();
   }
 
