@@ -1,6 +1,6 @@
 // ── Triominoes service worker ────────────────────────────────────────────────
 // Bump CACHE_VERSION after each new deployment to force clients to re-fetch.
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME    = `triominoes-${CACHE_VERSION}`;
 
 const PRECACHE = [

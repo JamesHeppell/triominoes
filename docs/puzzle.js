@@ -461,6 +461,138 @@
     }
     return { pieces: result, solutionValues };
   }
+  function countSolutions(pieceSet, constraints, limit = 2) {
+    const { cols } = boardShape;
+    const n = pieceSet.length;
+    const occ = Array(n).fill(null);
+    const slotRot = Array(n).fill(0);
+    const used = Array(n).fill(false);
+    let count = 0;
+    function allConstraintsMet() {
+      for (const c of constraints) {
+        if (c.kind === "sum") {
+          let total = 0;
+          for (const s of c.slots) {
+            const v = rotatedValues(pieceSet[occ[s]], slotRot[s]);
+            total += v[0] + v[1] + v[2];
+          }
+          if (total !== c.target)
+            return false;
+        } else {
+          const v = rotatedValues(pieceSet[occ[c.slots[0]]], slotRot[c.slots[0]]);
+          if (c.kind === "all-different" && !(v[0] !== v[1] && v[1] !== v[2] && v[0] !== v[2]))
+            return false;
+          if (c.kind === "all-same" && !(v[0] === v[1] && v[1] === v[2]))
+            return false;
+        }
+      }
+      return true;
+    }
+    function fill(slot) {
+      if (count >= limit)
+        return;
+      if (slot === n) {
+        if (allConstraintsMet())
+          count++;
+        return;
+      }
+      const row = Math.floor(slot / cols);
+      const col = slot % cols;
+      const isUp = (row + col) % 2 === 0;
+      const validRots = isUp ? [0, 2, 4] : [1, 3, 5];
+      for (let pi = 0; pi < n; pi++) {
+        if (used[pi] || count >= limit)
+          continue;
+        for (const r of validRots) {
+          if (count >= limit)
+            return;
+          const v = rotatedValues(pieceSet[pi], r);
+          let ok = true;
+          if (isUp) {
+            if (col > 0) {
+              const nb = rotatedValues(pieceSet[occ[slot - 1]], slotRot[slot - 1]);
+              if (v[0] !== nb[2] || v[2] !== nb[0])
+                ok = false;
+            }
+          } else {
+            if (col > 0 && ok) {
+              const nb = rotatedValues(pieceSet[occ[slot - 1]], slotRot[slot - 1]);
+              if (nb[0] !== v[1] || nb[1] !== v[0])
+                ok = false;
+            }
+            if (row > 0 && ok) {
+              const nb = rotatedValues(pieceSet[occ[(row - 1) * cols + col]], slotRot[(row - 1) * cols + col]);
+              if (nb[1] !== v[2] || nb[2] !== v[1])
+                ok = false;
+            }
+          }
+          if (ok) {
+            occ[slot] = pi;
+            slotRot[slot] = r;
+            used[pi] = true;
+            fill(slot + 1);
+            occ[slot] = null;
+            used[pi] = false;
+          }
+        }
+      }
+    }
+    fill(0);
+    return count;
+  }
+  function ensureUniqueSolution(pieceSet, solutionValues, rng) {
+    const n = boardShape.rows * boardShape.cols;
+    const pool = [];
+    for (let s = 0; s < n; s++) {
+      const v = solutionValues[s];
+      pool.push({ kind: "sum-single", slots: [s], target: v[0] + v[1] + v[2] });
+      if (v[0] !== v[1] && v[1] !== v[2] && v[0] !== v[2])
+        pool.push({ kind: "all-different", slots: [s], target: 0 });
+      if (v[0] === v[1] && v[1] === v[2])
+        pool.push({ kind: "all-same", slots: [s], target: 0 });
+    }
+    for (const { slotA, slotB } of boardAdjacentPairs) {
+      const vA = solutionValues[slotA], vB = solutionValues[slotB];
+      pool.push({
+        kind: "sum-pair",
+        slots: [slotA, slotB],
+        target: vA[0] + vA[1] + vA[2] + vB[0] + vB[1] + vB[2]
+      });
+    }
+    function toConstraints(chosen) {
+      return chosen.map((c, i) => ({
+        kind: c.kind === "sum-single" || c.kind === "sum-pair" ? "sum" : c.kind,
+        slots: c.slots,
+        target: c.target,
+        color: CONSTRAINT_COLORS[i]
+      }));
+    }
+    let bestChosen = [];
+    let bestCount = Infinity;
+    for (let attempt = 0; attempt < 8 && bestCount > 1; attempt++) {
+      const shuffled = [...pool];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const chosen = [];
+      const usedSlots = /* @__PURE__ */ new Set();
+      for (const c of shuffled) {
+        if (chosen.length >= 4)
+          break;
+        if (c.slots.some((s) => usedSlots.has(s)))
+          continue;
+        chosen.push(c);
+        c.slots.forEach((s) => usedSlots.add(s));
+      }
+      const solCount = countSolutions(pieceSet, toConstraints(chosen));
+      if (solCount < bestCount) {
+        bestCount = solCount;
+        bestChosen = chosen;
+      }
+    }
+    return toConstraints(bestChosen);
+  }
   var BODY_MARGIN2 = 16;
   var TRAY_PAD = 12;
   var DIVIDER_H = 14;
@@ -985,7 +1117,7 @@
     pieces = solvedPieces;
     pieceRotation = Array(pieces.length).fill(0);
     boardOccupancy = Array(boardShape.rows * boardShape.cols).fill(null);
-    boardConstraints = generateConstraints(solutionValues, rng);
+    boardConstraints = currentDifficulty === "hard" ? ensureUniqueSolution(pieces, solutionValues, rng) : generateConstraints(solutionValues, rng);
     const savedState = loadPuzzleState(currentDateKey, difficulty);
     if (savedState && savedState.occupancy.length === boardOccupancy.length && savedState.rotations.length === pieceRotation.length) {
       boardOccupancy = savedState.occupancy;
